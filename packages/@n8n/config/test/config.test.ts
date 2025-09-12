@@ -52,6 +52,11 @@ describe('GlobalConfig', () => {
 		ssl_key: '',
 		ssl_cert: '',
 		editorBaseUrl: '',
+		dataTable: {
+			maxSize: 100 * 1024 * 1024,
+			warningThreshold: 95 * 1024 * 1024,
+			sizeCheckCacheDuration: 5000,
+		},
 		database: {
 			logging: {
 				enabled: false,
@@ -64,6 +69,7 @@ describe('GlobalConfig', () => {
 				password: '',
 				port: 3306,
 				user: 'root',
+				poolSize: 10,
 			},
 			postgresdb: {
 				database: 'n8n',
@@ -234,8 +240,8 @@ describe('GlobalConfig', () => {
 				gracefulShutdownTimeout: 30,
 				prefix: 'bull',
 				settings: {
-					lockDuration: 30_000,
-					lockRenewTime: 15_000,
+					lockDuration: 60_000,
+					lockRenewTime: 10_000,
 					stalledInterval: 30_000,
 					maxStalledCount: 1,
 				},
@@ -254,6 +260,7 @@ describe('GlobalConfig', () => {
 			taskTimeout: 300,
 			heartbeatInterval: 30,
 			insecureMode: false,
+			isNativePythonRunnerEnabled: false,
 		},
 		sentry: {
 			backendDsn: '',
@@ -302,6 +309,8 @@ describe('GlobalConfig', () => {
 			disableWebhookHtmlSandboxing: false,
 		},
 		executions: {
+			timeout: -1,
+			maxTimeout: 3600,
 			pruneData: true,
 			pruneDataMaxAge: 336,
 			pruneDataMaxCount: 10_000,

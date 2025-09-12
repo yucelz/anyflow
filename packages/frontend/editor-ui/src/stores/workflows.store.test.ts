@@ -615,10 +615,81 @@ describe('useWorkflowsStore', () => {
 			workflowsStore.pinData({ node, data });
 			expect(uiStore.stateIsDirty).toBe(true);
 		});
+
+		it('should preserve binary data when pinning', async () => {
+			const node = { name: 'TestNode' } as INodeUi;
+			const data = [
+				{
+					json: { test: 'data' },
+					binary: {
+						data: {
+							fileName: 'test.txt',
+							mimeType: 'text/plain',
+							data: 'dGVzdCBkYXRh',
+						},
+					},
+				},
+			] as unknown as INodeExecutionData[];
+
+			workflowsStore.pinData({ node, data });
+
+			expect(workflowsStore.workflow.pinData?.[node.name]).toEqual([
+				{
+					json: { test: 'data' },
+					binary: {
+						data: {
+							fileName: 'test.txt',
+							mimeType: 'text/plain',
+							data: 'dGVzdCBkYXRh',
+						},
+					},
+				},
+			]);
+		});
+
+		it('should not update timestamp during restoration', async () => {
+			const node = { name: 'TestNode' } as INodeUi;
+			const data = [{ json: 'testData' }] as unknown as INodeExecutionData[];
+
+			// Set up existing pinned data with metadata
+			workflowsStore.workflow.pinData = { [node.name]: data };
+			workflowsStore.nodeMetadata[node.name] = { pristine: false, pinnedDataLastUpdatedAt: 1000 };
+
+			workflowsStore.pinData({ node, data, isRestoration: true });
+
+			expect(workflowsStore.nodeMetadata[node.name].pinnedDataLastUpdatedAt).toBeUndefined();
+		});
+
+		it('should clear timestamps during restoration', async () => {
+			const node = { name: 'TestNode' } as INodeUi;
+			const data = [{ json: 'testData' }] as unknown as INodeExecutionData[];
+
+			// Set up existing metadata with timestamps
+			workflowsStore.nodeMetadata[node.name] = {
+				pristine: false,
+				pinnedDataLastUpdatedAt: 1000,
+				pinnedDataLastRemovedAt: 2000,
+			};
+
+			workflowsStore.pinData({ node, data, isRestoration: true });
+
+			expect(workflowsStore.nodeMetadata[node.name].pinnedDataLastUpdatedAt).toBeUndefined();
+			expect(workflowsStore.nodeMetadata[node.name].pinnedDataLastRemovedAt).toBeUndefined();
+		});
 	});
 
 	describe('updateNodeExecutionData', () => {
-		const { successEvent, errorEvent, executionResponse } = generateMockExecutionEvents();
+		let successEvent: ReturnType<typeof generateMockExecutionEvents>['successEvent'];
+		let errorEvent: ReturnType<typeof generateMockExecutionEvents>['errorEvent'];
+		let executionResponse: ReturnType<typeof generateMockExecutionEvents>['executionResponse'];
+
+		beforeEach(() => {
+			const events = generateMockExecutionEvents();
+			successEvent = events.successEvent;
+			errorEvent = events.errorEvent;
+			executionResponse = events.executionResponse;
+		});
+
 		it('should throw error if not initialized', () => {
 			expect(() => workflowsStore.updateNodeExecutionData(successEvent)).toThrowError();
 		});
@@ -1359,6 +1430,7 @@ function generateMockExecutionEvents() {
 	const successEvent: PushPayload<'nodeExecuteAfter'> = {
 		executionId: '59',
 		nodeName: 'When clicking ‘Execute workflow’',
+		itemCount: 1,
 		data: {
 			hints: [],
 			startTime: 1727867966633,
@@ -1366,18 +1438,6 @@ function generateMockExecutionEvents() {
 			executionTime: 1,
 			source: [],
 			executionStatus: 'success',
-			data: {
-				main: [
-					[
-						{
-							json: {},
-							pairedItem: {
-								item: 0,
-							},
-						},
-					],
-				],
-			},
 		},
 	};
 

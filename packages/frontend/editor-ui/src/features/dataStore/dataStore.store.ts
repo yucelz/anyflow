@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { DATA_STORE_STORE } from '@/features/dataStore/constants';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useRootStore } from '@n8n/stores/useRootStore';
 import {
 	fetchDataStoresApi,
@@ -12,7 +12,9 @@ import {
 	moveDataStoreColumnApi,
 	getDataStoreRowsApi,
 	insertDataStoreRowApi,
-	upsertDataStoreRowsApi,
+	updateDataStoreRowsApi,
+	deleteDataStoreRowsApi,
+	fetchDataStoreGlobalLimitInBytes,
 } from '@/features/dataStore/dataStore.api';
 import type {
 	DataStore,
@@ -20,16 +22,23 @@ import type {
 	DataStoreRow,
 } from '@/features/dataStore/datastore.types';
 import { useProjectsStore } from '@/stores/projects.store';
-import { useDataStoreTypes } from '@/features/dataStore/composables/useDataStoreTypes';
+import { reorderItem } from '@/features/dataStore/utils';
+import { type DataTableSizeStatus } from 'n8n-workflow';
+import { useSettingsStore } from '@/stores/settings.store';
 
 export const useDataStoreStore = defineStore(DATA_STORE_STORE, () => {
 	const rootStore = useRootStore();
 	const projectStore = useProjectsStore();
-
-	const dataStoreTypes = useDataStoreTypes();
+	const settingsStore = useSettingsStore();
 
 	const dataStores = ref<DataStore[]>([]);
 	const totalCount = ref(0);
+	const dataStoreSize = ref(0);
+	const dataStoreSizeLimitState = ref<DataTableSizeStatus>('ok');
+
+	const maxSizeMB = computed(() =>
+		Math.floor(settingsStore.settings?.dataTables?.maxSize / 1024 / 1024),
+	);
 
 	const fetchDataStores = async (projectId: string, page: number, pageSize: number) => {
 		const response = await fetchDataStoresApi(rootStore.restApiContext, projectId, {
@@ -156,16 +165,11 @@ export const useDataStoreStore = defineStore(DATA_STORE_STORE, () => {
 		if (moved) {
 			const dsIndex = dataStores.value.findIndex((store) => store.id === datastoreId);
 			const fromIndex = dataStores.value[dsIndex].columns.findIndex((col) => col.id === columnId);
-			dataStores.value[dsIndex].columns = dataStores.value[dsIndex].columns.map((col) => {
-				if (col.id === columnId) return { ...col, index: targetIndex };
-				if (fromIndex < targetIndex && col.index > fromIndex && col.index <= targetIndex) {
-					return { ...col, index: col.index - 1 };
-				}
-				if (fromIndex > targetIndex && col.index >= targetIndex && col.index < fromIndex) {
-					return { ...col, index: col.index + 1 };
-				}
-				return col;
-			});
+			dataStores.value[dsIndex].columns = reorderItem(
+				dataStores.value[dsIndex].columns,
+				fromIndex,
+				targetIndex,
+			);
 		}
 		return moved;
 	};
@@ -175,35 +179,59 @@ export const useDataStoreStore = defineStore(DATA_STORE_STORE, () => {
 		projectId: string,
 		page: number,
 		pageSize: number,
+		sortBy: string,
 	) => {
 		return await getDataStoreRowsApi(rootStore.restApiContext, datastoreId, projectId, {
 			skip: (page - 1) * pageSize,
 			take: pageSize,
+			sortBy,
 		});
 	};
 
-	const insertEmptyRow = async (dataStore: DataStore) => {
-		const emptyRow: DataStoreRow = {};
-		dataStore.columns.forEach((column) => {
-			// Set default values based on column type
-			emptyRow[column.name] = dataStoreTypes.getDefaultValueForType(column.type);
-		});
-		return await insertDataStoreRowApi(
+	const insertEmptyRow = async (dataStoreId: string, projectId: string) => {
+		const inserted = await insertDataStoreRowApi(
 			rootStore.restApiContext,
-			dataStore.id,
-			emptyRow,
-			dataStore.projectId,
+			dataStoreId,
+			{},
+			projectId,
+		);
+		return inserted[0];
+	};
+
+	const updateRow = async (
+		dataStoreId: string,
+		projectId: string,
+		rowId: number,
+		rowData: DataStoreRow,
+	) => {
+		return await updateDataStoreRowsApi(
+			rootStore.restApiContext,
+			dataStoreId,
+			rowId,
+			rowData,
+			projectId,
 		);
 	};
 
-	const upsertRow = async (dataStoreId: string, projectId: string, row: DataStoreRow) => {
-		return await upsertDataStoreRowsApi(rootStore.restApiContext, dataStoreId, [row], projectId);
+	const deleteRows = async (dataStoreId: string, projectId: string, rowIds: number[]) => {
+		return await deleteDataStoreRowsApi(rootStore.restApiContext, dataStoreId, rowIds, projectId);
+	};
+
+	const fetchDataStoreSize = async () => {
+		const result = await fetchDataStoreGlobalLimitInBytes(rootStore.restApiContext);
+		dataStoreSize.value = Number((result.sizeBytes / 1024 / 1024).toFixed(2));
+		dataStoreSizeLimitState.value = result.sizeState;
+		return result;
 	};
 
 	return {
 		dataStores,
 		totalCount,
 		fetchDataStores,
+		fetchDataStoreSize,
+		dataStoreSize: computed(() => dataStoreSize.value),
+		dataStoreSizeLimitState: computed(() => dataStoreSizeLimitState.value),
+		maxSizeMB,
 		createDataStore,
 		deleteDataStore,
 		updateDataStore,
@@ -214,6 +242,7 @@ export const useDataStoreStore = defineStore(DATA_STORE_STORE, () => {
 		moveDataStoreColumn,
 		fetchDataStoreContent,
 		insertEmptyRow,
-		upsertRow,
+		updateRow,
+		deleteRows,
 	};
 });

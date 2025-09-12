@@ -377,15 +377,7 @@ export async function getBase(
 
 	const eventService = Container.get(EventService);
 
-	const moduleRegistry = Container.get(ModuleRegistry);
-	const dataStoreProxyProvider = moduleRegistry.isActive('data-store')
-		? Container.get(
-				(await import('@/modules/data-store/data-store-proxy.service')).DataStoreProxyService,
-			)
-		: undefined;
-
-	return {
-		dataStoreProxyProvider,
+	const additionalData: IWorkflowExecuteAdditionalData = {
 		currentNodeExecutionIndex: 0,
 		credentialsHelper: Container.get(CredentialsHelper),
 		executeWorkflow,
@@ -450,4 +442,12 @@ export async function getBase(
 		logAiEvent: (eventName: keyof AiEventMap, payload: AiEventPayload) =>
 			eventService.emit(eventName, payload),
 	};
+
+	for (const [moduleName, moduleContext] of Container.get(ModuleRegistry).context.entries()) {
+		// @ts-expect-error Adding an index signature `[key: string]: unknown`
+		// to `IWorkflowExecuteAdditionalData` triggers complex type errors for derived types.
+		additionalData[moduleName] = moduleContext;
+	}
+
+	return additionalData;
 }
