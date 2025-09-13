@@ -1,216 +1,72 @@
 name: "Google Artifact Registry: Build and Push"
 
 on:
-  workflow_call:
+  workflow_dispatch:
     inputs:
       n8n_version:
         description: "N8N version to build"
-        required: true
-        type: string
-      release_type:
-        description: "Release type (stable, nightly, dev)"
         required: false
         type: string
-        default: "stable"
-    secrets:
-      GCP_PROJECT_ID:
-        description: "Google Cloud Project ID"
-        required: true
-      GCP_SA_KEY:
-        description: "Google Cloud Service Account Key (JSON)"
-        required: true
-      GAR_LOCATION:
-        description: "Google Artifact Registry location (e.g., us-central1)"
-        required: true
-      GAR_REPOSITORY:
-        description: "Google Artifact Registry repository name"
-        required: true
+        default: "latest"
+  push:
+    branches:
+      - pre-prod
+  pull_request:
+    branches:
+      - pre-prod
 
 env:
   NODE_OPTIONS: "--max-old-space-size=7168"
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+  GAR_LOCATION: ${{ secrets.GAR_LOCATION }}
+  GAR_REPOSITORY: ${{ secrets.GAR_REPOSITORY }}
 
 jobs:
-  determine-build-context:
-    name: Determine Build Context
+  build-docker:
+    name: Build Docker Image
     runs-on: ubuntu-latest
     outputs:
-      release_type: ${{ steps.context.outputs.release_type }}
-      n8n_version: ${{ steps.context.outputs.n8n_version }}
-      should_push: ${{ steps.context.outputs.should_push }}
-      build_matrix: ${{ steps.matrix.outputs.matrix }}
-    steps:
-      - name: Determine build context values
-        id: context
-        run: |
-          RELEASE_TYPE="${{ inputs.release_type }}"
-          N8N_VERSION="${{ inputs.n8n_version }}"
-
-          # Only push stable releases to Google Artifact Registry
-          if [[ "$RELEASE_TYPE" == "stable" ]]; then
-            SHOULD_PUSH="true"
-          else
-            SHOULD_PUSH="false"
-          fi
-
-          {
-            echo "release_type=$RELEASE_TYPE"
-            echo "n8n_version=$N8N_VERSION"
-            echo "should_push=$SHOULD_PUSH"
-          } >> "$GITHUB_OUTPUT"
-
-          echo "=== Google Artifact Registry Build Context ==="
-          echo "Release type: $RELEASE_TYPE"
-          echo "N8N version: $N8N_VERSION"
-          echo "Should push: $SHOULD_PUSH"
-
-      - name: Determine build matrix
-        id: matrix
-        run: |
-          # Build for both AMD64 and ARM64 platforms for Kubernetes deployment
-          MATRIX='{
-            "platform": ["amd64", "arm64"],
-            "include": [{
-              "platform": "amd64",
-              "runner": "ubuntu-latest",
-              "docker_platform": "linux/amd64"
-            }, {
-              "platform": "arm64",
-              "runner": "ubuntu-latest",
-              "docker_platform": "linux/arm64"
-            }]
-          }'
-
-          echo "matrix=$(echo "$MATRIX" | jq -c .)" >> "$GITHUB_OUTPUT"
-          echo "Build matrix: $(echo "$MATRIX" | jq .)"
-
-  build-and-push-gar:
-    name: Build and Push to Google Artifact Registry (${{ matrix.platform }})
-    needs: determine-build-context
-    runs-on: ${{ matrix.runner }}
-    if: needs.determine-build-context.outputs.should_push == 'true'
-    timeout-minutes: 30
-    strategy:
-      matrix: ${{ fromJSON(needs.determine-build-context.outputs.build_matrix) }}
-    outputs:
-      n8n_image_ref: ${{ steps.determine-tags.outputs.n8n_primary_manifest_tag }}
-      runners_image_ref: ${{ steps.determine-runners-tags.outputs.runners_primary_manifest_tag }}
+      image_tag: ${{ steps.build.outputs.image_tag }}
+      image_digest: ${{ steps.build.outputs.image_digest }}
     steps:
       - name: Checkout code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
 
-      - name: Setup and Build
-        uses: n8n-io/n8n/.github/actions/setup-nodejs-blacksmith@f5fbbbe0a28a886451c886cac6b49192a39b0eea # v1.104.1
+      - name: Setup Node.js
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
         with:
-          build-command: pnpm build:n8n
+          node-version: "22"
+          cache: "pnpm"
 
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@f112390a2df9932162083945e46d439060d66ec2 # v2.1.4
+      - name: Install pnpm
+        uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2 # v4.0.0
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          version: 9
 
-      - name: Configure Docker to use gcloud as a credential helper
+      - name: Build Docker Image
+        id: build
         run: |
-          gcloud auth configure-docker ${{ secrets.GAR_LOCATION }}-docker.pkg.dev
+          # Use the build structure: "build:docker": "node scripts/build-n8n.mjs && node scripts/dockerize-n8n.mjs"
+          echo "Building n8n application..."
+          node scripts/build-n8n.mjs
 
-      - name: Determine Docker tags for n8n
-        id: determine-tags
-        run: |
-          N8N_VERSION="${{ needs.determine-build-context.outputs.n8n_version }}"
-          GAR_BASE="${{ secrets.GAR_LOCATION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPOSITORY }}/n8n"
-          PLATFORM="${{ matrix.platform }}"
+          echo "Building Docker image..."
+          export IMAGE_TAG="${{ inputs.n8n_version || 'latest' }}"
+          export IMAGE_BASE_NAME="n8nio/n8n"
+          node scripts/dockerize-n8n.mjs
 
-          # Create tags for Google Artifact Registry
-          PRIMARY_MANIFEST_TAG="${GAR_BASE}:${N8N_VERSION}"
-          PLATFORM_TAG="${PRIMARY_MANIFEST_TAG}-${PLATFORM}"
-          LATEST_TAG="${GAR_BASE}:latest-${PLATFORM}"
+          # Output the built image details
+          echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "image_digest=$(docker images --digests ${IMAGE_BASE_NAME}:${IMAGE_TAG} --format '{{.Digest}}')" >> "$GITHUB_OUTPUT"
 
-          echo "Generated tags:"
-          echo "  Platform tag: $PLATFORM_TAG"
-          echo "  Latest tag: $LATEST_TAG"
-
-          {
-            echo "tags<<EOF"
-            echo "$PLATFORM_TAG"
-            echo "$LATEST_TAG"
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
-
-          # Only output manifest tags from the first platform to avoid duplicates
-          if [[ "$PLATFORM" == "amd64" ]]; then
-            echo "n8n_primary_manifest_tag=${PRIMARY_MANIFEST_TAG}" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Determine Docker tags for runners
-        id: determine-runners-tags
-        run: |
-          N8N_VERSION="${{ needs.determine-build-context.outputs.n8n_version }}"
-          GAR_BASE="${{ secrets.GAR_LOCATION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPOSITORY }}/runners"
-          PLATFORM="${{ matrix.platform }}"
-
-          # Create tags for Google Artifact Registry
-          PRIMARY_MANIFEST_TAG="${GAR_BASE}:${N8N_VERSION}"
-          PLATFORM_TAG="${PRIMARY_MANIFEST_TAG}-${PLATFORM}"
-          LATEST_TAG="${GAR_BASE}:latest-${PLATFORM}"
-
-          echo "Generated runners tags:"
-          echo "  Platform tag: $PLATFORM_TAG"
-          echo "  Latest tag: $LATEST_TAG"
-
-          {
-            echo "tags<<EOF"
-            echo "$PLATFORM_TAG"
-            echo "$LATEST_TAG"
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
-
-          # Only output manifest tags from the first platform to avoid duplicates
-          if [[ "$PLATFORM" == "amd64" ]]; then
-            echo "runners_primary_manifest_tag=${PRIMARY_MANIFEST_TAG}" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
-
-      - name: Build and push n8n Docker image to GAR
-        uses: docker/build-push-action@4f58ea79222b3b9dc2c8bbdd6debcef730109a75 # v6.9.0
-        with:
-          context: .
-          file: ./docker/images/n8n/Dockerfile
-          build-args: |
-            NODE_VERSION=22
-            N8N_VERSION=${{ needs.determine-build-context.outputs.n8n_version }}
-            N8N_RELEASE_TYPE=${{ needs.determine-build-context.outputs.release_type }}
-          platforms: ${{ matrix.docker_platform }}
-          provenance: true
-          sbom: true
-          push: true
-          tags: ${{ steps.determine-tags.outputs.tags }}
-
-      - name: Build and push task runners Docker image to GAR
-        uses: docker/build-push-action@4f58ea79222b3b9dc2c8bbdd6debcef730109a75 # v6.9.0
-        with:
-          context: .
-          file: ./docker/images/runners/Dockerfile
-          build-args: |
-            NODE_VERSION=22.19
-            PYTHON_VERSION=3.13
-            N8N_VERSION=${{ needs.determine-build-context.outputs.n8n_version }}
-            N8N_RELEASE_TYPE=${{ needs.determine-build-context.outputs.release_type }}
-          platforms: ${{ matrix.docker_platform }}
-          provenance: true
-          sbom: true
-          push: true
-          tags: ${{ steps.determine-runners-tags.outputs.tags }}
-
-  create-multi-arch-manifest:
-    name: Create Multi-Arch Manifest for GAR
-    needs: [determine-build-context, build-and-push-gar]
+  upload-to-gar:
+    name: Upload to Google Artifact Registry
+    needs: build-docker
     runs-on: ubuntu-latest
-    if: |
-      needs.build-and-push-gar.result == 'success' &&
-      needs.determine-build-context.outputs.should_push == 'true'
+    if: github.event_name != 'pull_request'
     steps:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@f112390a2df9932162083945e46d439060d66ec2 # v2.1.4
@@ -221,53 +77,21 @@ jobs:
         run: |
           gcloud auth configure-docker ${{ secrets.GAR_LOCATION }}-docker.pkg.dev
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
-
-      - name: Create GAR multi-arch manifest for n8n
-        if: needs.build-and-push-gar.outputs.n8n_image_ref != ''
+      - name: Tag and Push to Google Artifact Registry
         run: |
-          N8N_VERSION="${{ needs.determine-build-context.outputs.n8n_version }}"
-          GAR_BASE="${{ secrets.GAR_LOCATION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPOSITORY }}/n8n"
+          # Get the built image details
+          LOCAL_IMAGE="n8nio/n8n:${{ needs.build-docker.outputs.image_tag }}"
+          GAR_IMAGE="${{ secrets.GAR_LOCATION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPOSITORY }}/n8n:${{ needs.build-docker.outputs.image_tag }}"
+          GAR_LATEST="${{ secrets.GAR_LOCATION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPOSITORY }}/n8n:latest"
 
-          MANIFEST_TAG="${GAR_BASE}:${N8N_VERSION}"
-          LATEST_MANIFEST_TAG="${GAR_BASE}:latest"
+          echo "Tagging local image for Google Artifact Registry..."
+          docker tag $LOCAL_IMAGE $GAR_IMAGE
+          docker tag $LOCAL_IMAGE $GAR_LATEST
 
-          echo "Creating GAR n8n manifest: $MANIFEST_TAG"
+          echo "Pushing to Google Artifact Registry..."
+          docker push $GAR_IMAGE
+          docker push $GAR_LATEST
 
-          docker buildx imagetools create \
-            --tag $MANIFEST_TAG \
-            --tag $LATEST_MANIFEST_TAG \
-            ${MANIFEST_TAG}-amd64 \
-            ${MANIFEST_TAG}-arm64
-
-      - name: Create GAR multi-arch manifest for runners
-        if: needs.build-and-push-gar.outputs.runners_image_ref != ''
-        run: |
-          N8N_VERSION="${{ needs.determine-build-context.outputs.n8n_version }}"
-          GAR_BASE="${{ secrets.GAR_LOCATION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GAR_REPOSITORY }}/runners"
-
-          MANIFEST_TAG="${GAR_BASE}:${N8N_VERSION}"
-          LATEST_MANIFEST_TAG="${GAR_BASE}:latest"
-
-          echo "Creating GAR runners manifest: $MANIFEST_TAG"
-
-          docker buildx imagetools create \
-            --tag $MANIFEST_TAG \
-            --tag $LATEST_MANIFEST_TAG \
-            ${MANIFEST_TAG}-amd64 \
-            ${MANIFEST_TAG}-arm64
-
-      - name: Output image references for Kubernetes deployment
-        run: |
-          N8N_VERSION="${{ needs.determine-build-context.outputs.n8n_version }}"
-          GAR_LOCATION="${{ secrets.GAR_LOCATION }}"
-          GCP_PROJECT_ID="${{ secrets.GCP_PROJECT_ID }}"
-          GAR_REPOSITORY="${{ secrets.GAR_REPOSITORY }}"
-
-          echo "=== Google Artifact Registry Images ==="
-          echo "N8N Image: ${GAR_LOCATION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_REPOSITORY}/n8n:${N8N_VERSION}"
-          echo "N8N Latest: ${GAR_LOCATION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_REPOSITORY}/n8n:latest"
-          echo "Runners Image: ${GAR_LOCATION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_REPOSITORY}/runners:${N8N_VERSION}"
-          echo "Runners Latest: ${GAR_LOCATION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_REPOSITORY}/runners:latest"
-          echo "=============================================="
+          echo "=== Upload Complete ==="
+          echo "Image pushed to: $GAR_IMAGE"
+          echo "Latest tag: $GAR_LATEST"

@@ -1,15 +1,15 @@
 #!/bin/bash
 
 # =============================================================================
-# Release to Google Artifact Registry Script
+# Upload to Google Artifact Registry Script
 # =============================================================================
-# This script creates a release branch from pre-prod and triggers the
-# Google Artifact Registry upload process
+# This script triggers the Google Artifact Registry workflow to build and
+# upload Docker images to Google Cloud
 #
 # Prerequisites:
-# - Git repository with pre-prod branch
+# - Git repository
 # - GitHub CLI (gh) installed and authenticated
-# - Proper permissions to create branches and trigger workflows
+# - Proper permissions to trigger workflows
 # - Google Artifact Registry secrets configured in GitHub repository
 #
 # Required GitHub Secrets:
@@ -29,8 +29,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-RELEASE_BRANCH="pre-prod"  # Always create releases from pre-prod
-DEFAULT_RELEASE_TYPE="minor"
+DEFAULT_N8N_VERSION="latest"
 
 # Functions
 log_info() {
@@ -53,23 +52,22 @@ show_usage() {
     cat << EOF
 Usage: $0 [OPTIONS]
 
-This script creates a release branch from pre-prod and triggers the Google Artifact Registry upload process.
+This script triggers the Google Artifact Registry workflow to build and upload Docker images.
 
 OPTIONS:
-    -t, --release-type TYPE     Release type: patch|minor|major|experimental (default: minor)
+    -v, --version VERSION       N8N version to build (default: latest)
     -h, --help                  Show this help message
 
 EXAMPLES:
-    $0                          # Create minor release from pre-prod
-    $0 -t patch                 # Create patch release from pre-prod
-    $0 -t major                 # Create major release from pre-prod
+    $0                          # Build and upload latest version
+    $0 -v 1.0.0                 # Build and upload specific version
+    $0 -v latest                # Build and upload latest version
 
 PROCESS OVERVIEW:
     1. Validate prerequisites and inputs
-    2. Fetch latest changes from remote
-    3. Create release PR using GitHub workflow (always from pre-prod)
-    4. Monitor release PR creation
-    5. Provide instructions for manual merge and GAR upload
+    2. Trigger Google Artifact Registry workflow
+    3. Monitor workflow execution
+    4. Provide status and next steps
 
 EOF
 }
@@ -95,19 +93,9 @@ check_prerequisites() {
         exit 1
     fi
 
-    # Check if required secrets are configured (we can't directly check secrets, but we can check if the workflow exists)
+    # Check if Google Artifact Registry workflow exists
     if [[ ! -f ".github/workflows/google-artifact-registry.yml" ]]; then
         log_error "Google Artifact Registry workflow not found at .github/workflows/google-artifact-registry.yml"
-        exit 1
-    fi
-
-    if [[ ! -f ".github/workflows/release-create-pr.yml" ]]; then
-        log_error "Release create PR workflow not found at .github/workflows/release-create-pr.yml"
-        exit 1
-    fi
-
-    if [[ ! -f ".github/workflows/release-publish.yml" ]]; then
-        log_error "Release publish workflow not found at .github/workflows/release-publish.yml"
         exit 1
     fi
 
@@ -115,53 +103,36 @@ check_prerequisites() {
 }
 
 validate_inputs() {
-    local release_type="$1"
+    local n8n_version="$1"
 
     log_info "Validating inputs..."
 
-    # Validate release type
-    case "$release_type" in
-        patch|minor|major|experimental)
-            log_success "Release type '$release_type' is valid"
-            ;;
-        *)
-            log_error "Invalid release type '$release_type'. Must be one of: patch, minor, major, experimental"
-            exit 1
-            ;;
-    esac
-
-    # Check if pre-prod branch exists
-    if ! git show-ref --verify --quiet "refs/remotes/origin/$RELEASE_BRANCH"; then
-        log_error "Pre-prod branch '$RELEASE_BRANCH' does not exist on remote"
+    # Basic validation for version string (allow any non-empty string)
+    if [[ -z "$n8n_version" ]]; then
+        log_error "N8N version cannot be empty"
         exit 1
     fi
 
+    log_success "N8N version '$n8n_version' is valid"
     log_success "Input validation completed"
 }
 
-fetch_latest_changes() {
-    log_info "Fetching latest changes from remote..."
-    git fetch origin
-    log_success "Latest changes fetched"
-}
+trigger_gar_workflow() {
+    local n8n_version="$1"
 
-create_release_pr() {
-    local release_type="$1"
+    log_info "Triggering Google Artifact Registry workflow with version '$n8n_version'..."
 
-    log_info "Creating release PR from '$RELEASE_BRANCH' with release type '$release_type'..."
+    # Trigger the google-artifact-registry workflow
+    gh workflow run google-artifact-registry.yml \
+        --field n8n_version="$n8n_version"
 
-    # Trigger the release-create-pr workflow
-    gh workflow run release-create-pr.yml \
-        --field base-branch="$RELEASE_BRANCH" \
-        --field release-type="$release_type"
-
-    log_success "Release PR workflow triggered"
+    log_success "Google Artifact Registry workflow triggered"
     log_info "Waiting for workflow to start..."
     sleep 5
 
     # Get the latest workflow run
     local run_id
-    run_id=$(gh run list --workflow=release-create-pr.yml --limit=1 --json databaseId --jq '.[0].databaseId')
+    run_id=$(gh run list --workflow=google-artifact-registry.yml --limit=1 --json databaseId --jq '.[0].databaseId')
 
     if [[ -n "$run_id" ]]; then
         log_info "Monitoring workflow run: $run_id"
@@ -175,21 +146,18 @@ create_release_pr() {
         status=$(gh run view "$run_id" --json conclusion --jq '.conclusion')
 
         if [[ "$status" == "success" ]]; then
-            log_success "Release PR workflow completed successfully"
+            log_success "Google Artifact Registry workflow completed successfully"
             return 0
         else
-            log_error "Release PR workflow failed with status: $status"
-            log_error "This is likely due to a git push issue in the workflow."
+            log_error "Google Artifact Registry workflow failed with status: $status"
             log_error "Please check the workflow logs for details:"
             log_error "  gh run view $run_id --log"
             log_error ""
             log_error "Common causes:"
-            log_error "  - Branch protection rules preventing force push"
-            log_error "  - Insufficient permissions for the GitHub token"
-            log_error "  - Git refspec syntax issues in the workflow"
-            log_error ""
-            log_error "You may need to manually create the release branch or"
-            log_error "contact your repository administrator to check permissions."
+            log_error "  - Missing or invalid Google Cloud credentials"
+            log_error "  - Docker build failures"
+            log_error "  - Network connectivity issues"
+            log_error "  - Insufficient permissions for Google Artifact Registry"
             return 1
         fi
     else
@@ -198,68 +166,45 @@ create_release_pr() {
     fi
 }
 
-show_next_steps() {
-    local release_type="$1"
+show_completion_summary() {
+    local n8n_version="$1"
 
     cat << EOF
 
 ${GREEN}=============================================================================
-RELEASE PROCESS INITIATED SUCCESSFULLY
+GOOGLE ARTIFACT REGISTRY UPLOAD COMPLETED
 =============================================================================${NC}
 
 ${BLUE}WHAT HAPPENED:${NC}
-✅ Release PR workflow has been triggered
-✅ A new release branch will be created from '$RELEASE_BRANCH'
-✅ Version will be bumped according to '$release_type' release type
-✅ A Pull Request will be created for the release
+✅ Google Artifact Registry workflow was triggered
+✅ Docker image was built using: node scripts/build-n8n.mjs && node scripts/dockerize-n8n.mjs
+✅ Docker image was tagged and uploaded to Google Artifact Registry
 
-${YELLOW}NEXT STEPS:${NC}
-
-1. ${BLUE}REVIEW THE RELEASE PR:${NC}
-   - Check the generated changelog
-   - Verify version bumps are correct
-   - Review any other changes
-
-2. ${BLUE}MERGE THE RELEASE PR:${NC}
-   - Once you're satisfied with the release PR, merge it
-   - This will automatically trigger the release-publish.yml workflow
-
-3. ${BLUE}AUTOMATIC GOOGLE ARTIFACT REGISTRY UPLOAD:${NC}
-   - The release-publish.yml workflow will automatically:
-     ✅ Publish to NPM
-     ✅ Build and push Docker images to DockerHub
-     ✅ Build and push Docker images to Google Artifact Registry
-     ✅ Create GitHub release
-     ✅ Create Sentry release
-
-4. ${BLUE}MONITOR THE RELEASE:${NC}
-   - Watch the release-publish workflow: gh run list --workflow=release-publish.yml
-   - Check Google Artifact Registry for the new images
-   - Verify the GitHub release was created
-
-${GREEN}GOOGLE ARTIFACT REGISTRY IMAGES WILL BE AVAILABLE AT:${NC}
-- N8N Image: \${GAR_LOCATION}-docker.pkg.dev/\${GCP_PROJECT_ID}/\${GAR_REPOSITORY}/n8n:\${VERSION}
+${GREEN}DOCKER IMAGES AVAILABLE AT:${NC}
+- N8N Image: \${GAR_LOCATION}-docker.pkg.dev/\${GCP_PROJECT_ID}/\${GAR_REPOSITORY}/n8n:${n8n_version}
 - N8N Latest: \${GAR_LOCATION}-docker.pkg.dev/\${GCP_PROJECT_ID}/\${GAR_REPOSITORY}/n8n:latest
-- Runners Image: \${GAR_LOCATION}-docker.pkg.dev/\${GCP_PROJECT_ID}/\${GAR_REPOSITORY}/runners:\${VERSION}
-- Runners Latest: \${GAR_LOCATION}-docker.pkg.dev/\${GCP_PROJECT_ID}/\${GAR_REPOSITORY}/runners:latest
 
 ${BLUE}USEFUL COMMANDS:${NC}
-- List recent workflow runs: gh run list
-- Watch a specific run: gh run watch <run-id>
-- View release PRs: gh pr list --label release
-- Check current releases: gh release list
+- List recent workflow runs: gh run list --workflow=google-artifact-registry.yml
+- Check workflow status: gh run list
+- View workflow logs: gh run view <run-id> --log
+
+${BLUE}NEXT STEPS:${NC}
+- Verify the images are available in your Google Artifact Registry
+- Deploy the images to your Kubernetes cluster or container environment
+- Update your deployment configurations to use the new image tags
 
 EOF
 }
 
 main() {
-    local release_type="$DEFAULT_RELEASE_TYPE"
+    local n8n_version="$DEFAULT_N8N_VERSION"
 
     # Parse command line arguments
     while [[ $# -gt 0 ]]; do
         case $1 in
-            -t|--release-type)
-                release_type="$2"
+            -v|--version)
+                n8n_version="$2"
                 shift 2
                 ;;
             -h|--help)
@@ -274,20 +219,18 @@ main() {
         esac
     done
 
-    log_info "Starting release process..."
-    log_info "Base branch: $RELEASE_BRANCH (fixed)"
-    log_info "Release type: $release_type"
+    log_info "Starting Google Artifact Registry upload process..."
+    log_info "N8N version: $n8n_version"
     echo
 
-    # Execute the release process
+    # Execute the upload process
     check_prerequisites
-    validate_inputs "$release_type"
-    fetch_latest_changes
+    validate_inputs "$n8n_version"
 
-    if create_release_pr "$release_type"; then
-        show_next_steps "$release_type"
+    if trigger_gar_workflow "$n8n_version"; then
+        show_completion_summary "$n8n_version"
     else
-        log_error "Release process failed. Please check the workflow logs."
+        log_error "Google Artifact Registry upload failed. Please check the workflow logs."
         exit 1
     fi
 }
