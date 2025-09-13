@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "anyflow-helm",
+  "private_key_id": "d168d10594f3581da94f2ffbf1900138840d1999",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC7BDHxY+ggEDtI\n8yFV6EMoZHjQCsTRgstwvuy6oZLbm1OHUVfC3FmsUV704GLSS/llOnkZo7hLvPCR\nV/8e75jl5izmxadKkM3B3Ug8wiloJVhWL2lUsvPKz7p9hYwBZUyIr5/4kK5q+Gvv\ncEvGcyuHT0FVjLSqM9rbZUSV/unMwl091qLSfvzBA3UvIvqGsdPNjzumaA9xeRbC\nMXB+YT06me1vje4PDIDrcs31CiVkz4GFw63sqXH7fH6yKe2MKnX2sH6xRK2v4f5p\n2GbiR0KyRi6xmuRUzbqMNmSJ7kTFIJAqDs2/7tSPNxMtmKjDn+U/boqD9V+JjVJb\nQvTaDKY9AgMBAAECggEAG1pqOZ28uk/Vc/6HniqKBBLp7rfcgK5KNjPeqQ9vzOoD\nhhO6K9iRzxfZtSRKn+qX0BwE0WC2WHGKmB+QQ4SUzu9jGt/G76uNRLEqWySk7MQl\njvmBRO+lo8DNTIWnbB7WWlmhorf6os+x7cP1eVGoCLLpYetiE1DhTlyZ8vxlUtrM\ng1wVXQ8wIpxgl+qf89lMn1La4m8GolCl8TkX7Ch9vUAksbXDSPs3Tuas8alZ78G3\nxklBQWwTrJXksOobgQy8LQb2O/+Pp5BnJLQj7SSwK5bMCzvsvP0d9A5jgfuPpsQm\nOu8Ti2gGurBofd/zWDvAwRYcspyaegekV+X6vsR+iwKBgQDwDmOUpbjRHHE1cVwo\nbky6axZJpXLl33dUUVyHgaLPJrzM4nAC5NzoJ6F4h2DkT4AVPV+d4V30dzS35HFG\nCXBJbgqhwN6TQqkw0M0ih+GYIgbp4xTCGGBiejUxFyJqdWU22sP8l8sOx5pMaYmT\nr0LGCjA6ABR+rqFkWyp+Kj11NwKBgQDHb/v9VRLXUiPIikQv1mwA8choDem3dJ8j\nFV9hzZTj1e7xNCFZwIGbMS7uux3vPJsAwqDHqdUHX7rjxcEwfJdy5lUYFTF1qvQe\n2d4g8gXpzFolVOoZSqAyGgjMIsRUx/IEqN9qVdViRuvIxlEz+YHbk6f/+WUCRoHy\nQlIAAfC6KwKBgQCNQ4pqIROfSqN8FZdr22yfjwDwmcIBb/1iyvYub6UFTgBweRf9\nO/ybSScGLHRiJj5zQUiROdv2Tmfhhzb5Rfij3XO4OC1Cb0ntBhKRLXEd+3giDpVa\nmsmtacj/eGOyTh8fpqEKdbDyo5czPC/PjqU2sSwsFXv6CH3E9rkMwYKlBQKBgAWM\n+FZ0p7GWd6h9MKikLx1XnVxIBtk0RbmUPrNaJWqx6ZSM/uCgmvrWw5ehXZPq++Vp\nhVAJSgSKhYkRV+8hiJWKE5Q4AshjmafCKIyCL+fx6BBh7KIHka3TS6tizFQPvIyk\nppMvEGFL2AQegOQRbavO0D4vksAddkBn2CBn7WtBAoGBAIHduUpXACrt+lEeboD0\noqvx79k5gNtI2rlNA3qEYUEMVA7pAYxSl5NoAOsZOsuoYMAyTjvibVDZxjW81P0P\nCdUAD3nx0o067F1RCYKJAWwqfmjGXrclpHMSkwZqn9G0ofGj6S1bOxvqQPa9QYYz\n1UOU5GMfvcdBctsXtaGHNs/0\n-----END PRIVATE KEY-----\n",
+  "client_email": "github-actions-n8n@anyflow-helm.iam.gserviceaccount.com",
+  "client_id": "103457841327706646409",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/github-actions-n8n%40anyflow-helm.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
