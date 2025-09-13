@@ -28,7 +28,14 @@ assert.match(releaseType, /^(patch|minor|major|experimental)$/, 'Invalid RELEASE
 
 // TODO: if releaseType is `auto` determine release type based on the changelog
 
-const lastTag = (await exec('git describe --tags --match "n8n@*" --abbrev=0')).stdout.trim();
+let lastTag;
+try {
+	lastTag = (await exec('git describe --tags --match "n8n@*" --abbrev=0')).stdout.trim();
+} catch (error) {
+	// No matching tags found, this might be the first release
+	console.warn('No matching tags found, treating as first release');
+	lastTag = null;
+}
 const packages = JSON.parse((await exec('pnpm ls -r --only-projects --json')).stdout);
 
 const packageMap = {};
@@ -36,9 +43,11 @@ for (let { name, path, version, private: isPrivate, dependencies } of packages) 
 	if (isPrivate && path !== rootDir) continue;
 	if (path === rootDir) name = 'monorepo-root';
 
-	const isDirty = await exec(`git diff --quiet HEAD ${lastTag} -- ${path}`)
-		.then(() => false)
-		.catch((error) => true);
+	const isDirty = lastTag
+		? await exec(`git diff --quiet HEAD ${lastTag} -- ${path}`)
+			.then(() => false)
+			.catch((error) => true)
+		: true; // If no lastTag, consider all packages as dirty (first release)
 
 	packageMap[name] = { path, isDirty, version };
 }
