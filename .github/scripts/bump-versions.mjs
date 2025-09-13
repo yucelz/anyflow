@@ -52,10 +52,15 @@ for (let { name, path, version, private: isPrivate, dependencies } of packages) 
 	packageMap[name] = { path, isDirty, version };
 }
 
-assert.ok(
-	Object.values(packageMap).some(({ isDirty }) => isDirty),
-	'No changes found since the last release',
-);
+// Check if there are changes since the last release
+const hasChanges = Object.values(packageMap).some(({ isDirty }) => isDirty);
+
+// Allow manual releases even without changes (for hotfixes, etc.)
+// But warn the user about it
+if (!hasChanges) {
+	console.warn('Warning: No changes found since the last release. Creating release anyway.');
+	console.warn('This might be intentional for hotfixes or manual releases.');
+}
 
 // Keep the monorepo version up to date with the released version
 packageMap['monorepo-root'].version = packageMap['n8n'].version;
@@ -65,15 +70,19 @@ for (const packageName in packageMap) {
 	const packageFile = resolve(path, 'package.json');
 	const packageJson = JSON.parse(await readFile(packageFile, 'utf-8'));
 
-	packageJson.version = packageMap[packageName].nextVersion =
-		isDirty ||
+	// For manual releases without changes, we still want to increment the version
+	// Only keep the same version if this is truly a no-op (which shouldn't happen in practice)
+	const shouldIncrement = isDirty ||
 		Object.keys(packageJson.dependencies || {}).some(
 			(dependencyName) => packageMap[dependencyName]?.isDirty,
-		)
-			? releaseType === 'experimental'
-				? generateExperimentalVersion(version)
-				: semver.inc(version, releaseType)
-			: version;
+		) ||
+		!hasChanges; // Force increment for manual releases without changes
+
+	packageJson.version = packageMap[packageName].nextVersion = shouldIncrement
+		? releaseType === 'experimental'
+			? generateExperimentalVersion(version)
+			: semver.inc(version, releaseType)
+		: version;
 
 	await writeFile(packageFile, JSON.stringify(packageJson, null, 2) + '\n');
 }

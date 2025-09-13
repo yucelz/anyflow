@@ -27,7 +27,7 @@ jobs:
       contents: write
       pull-requests: write
 
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
@@ -47,6 +47,11 @@ jobs:
           npm i -g corepack@0.33
           corepack enable
 
+      - name: Configure Git
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
       - name: Bump package versions
         run: |
           echo "NEXT_RELEASE=$(node .github/scripts/bump-versions.mjs)" >> "$GITHUB_ENV"
@@ -56,17 +61,30 @@ jobs:
       - name: Update Changelog
         run: node .github/scripts/update-changelog.mjs
 
-      - name: Push the base branch
+      - name: Create and push release branch
         env:
           BASE_BRANCH: ${{ github.event.inputs.base-branch }}
         run: |
-          git push -f origin "refs/remotes/origin/${{ env.BASE_BRANCH }}:refs/heads/release/${{ env.NEXT_RELEASE }}"
+          # Create the release branch from current HEAD (which is the base branch)
+          git checkout -b "release/${{ env.NEXT_RELEASE }}"
 
-      - name: Push the release branch, and Create the PR
+          # Add all changes made by the version bump and changelog update
+          git add -A
+
+          # Commit the changes if there are any
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: prepare release ${{ env.NEXT_RELEASE }}"
+          fi
+
+          # Push the release branch
+          git push origin "release/${{ env.NEXT_RELEASE }}"
+
+      - name: Create Pull Request
         uses: peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c # v6
         with:
-          base: "release/${{ env.NEXT_RELEASE }}"
-          branch: "release-pr/${{ env.NEXT_RELEASE }}"
+          token: ${{ secrets.GITHUB_TOKEN }}
+          base: ${{ github.event.inputs.base-branch }}
+          branch: "release/${{ env.NEXT_RELEASE }}"
           commit-message: ":rocket: Release ${{ env.NEXT_RELEASE }}"
           delete-branch: true
           labels: release,release:${{ github.event.inputs.release-type }}
