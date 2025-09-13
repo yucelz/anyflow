@@ -10,12 +10,10 @@ on:
         default: "latest"
   push:
     branches:
-      - main
-      - master
+      - pre-prod
   pull_request:
     branches:
-      - main
-      - master
+      - pre-prod
 
 env:
   NODE_OPTIONS: "--max-old-space-size=7168"
