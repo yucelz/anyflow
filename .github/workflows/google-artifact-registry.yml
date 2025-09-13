@@ -1,5 +1,4 @@
-# Alternative approach using Workload Identity Federation (more secure)
-name: "Google Artifact Registry: Build and Push (Workload Identity)"
+name: "Google Artifact Registry: Build and Push"
 
 on:
   workflow_dispatch:
@@ -21,11 +20,6 @@ env:
   GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   GAR_LOCATION: ${{ secrets.GAR_LOCATION }}
   GAR_REPOSITORY: ${{ secrets.GAR_REPOSITORY }}
-
-# Required for requesting the JWT
-permissions:
-  id-token: write
-  contents: read
 
 jobs:
   build-and-push:
@@ -66,18 +60,25 @@ jobs:
           echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
           echo "image_digest=$(docker images --digests ${IMAGE_BASE_NAME}:${IMAGE_TAG} --format '{{.Digest}}')" >> "$GITHUB_OUTPUT"
 
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@f112390a2df9932162083945e46d439060d66ec2 # v2.1.4
-        with:
-          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
-          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
-
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@f0990588f1e5b5af6827153b93673613abdc6ec7 # v2.1.1
 
-      - name: Configure Docker to use gcloud as a credential helper
+      - name: Authenticate with Google Cloud using Service Account Key
         run: |
+          # Create temporary service account key file
+          echo '${{ secrets.GCP_SA_KEY }}' > /tmp/gcp-sa-key.json
+
+          # Activate service account
+          gcloud auth activate-service-account --key-file=/tmp/gcp-sa-key.json
+
+          # Set the project
+          gcloud config set project ${{ secrets.GCP_PROJECT_ID }}
+
+          # Configure Docker for Artifact Registry
           gcloud auth configure-docker ${{ secrets.GAR_LOCATION }}-docker.pkg.dev --quiet
+
+          # Clean up the key file
+          rm /tmp/gcp-sa-key.json
 
       - name: Tag and Push to Google Artifact Registry
         run: |
