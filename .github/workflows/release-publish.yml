@@ -1,11 +1,11 @@
-name: 'Release: Publish'
+name: "Release: Publish"
 
 on:
   pull_request:
     types:
       - closed
     branches:
-      - 'release/*'
+      - "release/*"
 
 jobs:
   publish-to-npm:
@@ -78,9 +78,23 @@ jobs:
       release_type: stable
     secrets: inherit
 
+  publish-to-google-artifact-registry:
+    name: Publish to Google Artifact Registry
+    needs: [publish-to-npm]
+    uses: ./.github/workflows/google-artifact-registry.yml
+    with:
+      n8n_version: ${{ needs.publish-to-npm.outputs.release }}
+      release_type: stable
+    secrets: inherit
+
   create-github-release:
     name: Create a GitHub Release
-    needs: [publish-to-npm, publish-to-docker-hub]
+    needs:
+      [
+        publish-to-npm,
+        publish-to-docker-hub,
+        publish-to-google-artifact-registry,
+      ]
     runs-on: ubuntu-latest
     if: github.event.pull_request.merged == true
     timeout-minutes: 5
@@ -94,7 +108,7 @@ jobs:
         uses: ncipollo/release-action@1c89adf39833729d8f85a31ccbc451b078733c80 # v1
         with:
           commit: ${{github.event.pull_request.base.ref}}
-          tag: 'n8n@${{ needs.publish-to-npm.outputs.release }}'
+          tag: "n8n@${{ needs.publish-to-npm.outputs.release }}"
           prerelease: true
           makeLatest: false
           body: ${{github.event.pull_request.body}}
@@ -147,7 +161,7 @@ jobs:
     uses: ./.github/workflows/sbom-generation-callable.yml
     with:
       n8n_version: ${{ needs.publish-to-npm.outputs.release }}
-      release_tag_ref: 'n8n@${{ needs.publish-to-npm.outputs.release }}'
+      release_tag_ref: "n8n@${{ needs.publish-to-npm.outputs.release }}"
     secrets: inherit
 
   trigger-release-note:
