@@ -100,6 +100,119 @@ After a successful release, the following images will be available:
 {GAR_LOCATION}-docker.pkg.dev/{GCP_PROJECT_ID}/{GAR_REPOSITORY}/runners:latest
 ```
 
+## Managing Docker Images
+
+### Prerequisites
+Replace these placeholders with your actual values:
+- `{GAR_LOCATION}` = your GAR_LOCATION secret
+- `{GCP_PROJECT_ID}` = your GCP_PROJECT_ID secret
+- `{GAR_REPOSITORY}` = your GAR_REPOSITORY secret
+
+### Basic Commands
+
+#### List All Repositories
+```bash
+ gcloud artifacts repositories list --location=$LOCATION
+```
+
+#### List All Docker Images in Repository
+```bash
+gcloud artifacts docker images list $LOCATION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY
+```
+
+#### List Images with Details (Tags, Digest, Size)
+```bash
+gcloud artifacts docker images list {GAR_LOCATION}-docker.pkg.dev/{GCP_PROJECT_ID}/{GAR_REPOSITORY} \
+  --include-tags \
+  --format="table(package,version,create_time,update_time)"
+```
+
+### Detailed Image Information
+
+#### Get Detailed Information About Specific Image
+```bash
+gcloud artifacts docker images describe {GAR_LOCATION}-docker.pkg.dev/{GCP_PROJECT_ID}/{GAR_REPOSITORY}/n8n:latest
+```
+
+#### List All Tags for Specific Image
+```bash
+gcloud artifacts docker tags list {GAR_LOCATION}-docker.pkg.dev/{GCP_PROJECT_ID}/{GAR_REPOSITORY}/n8n
+```
+
+#### Custom Formatted Image Details
+```bash
+gcloud artifacts docker images list {GAR_LOCATION}-docker.pkg.dev/{GCP_PROJECT_ID}/{GAR_REPOSITORY} \
+  --include-tags \
+  --format="table(
+    package:label='IMAGE_PATH',
+    version:label='TAG',
+    create_time.date():label='CREATED',
+    update_time.date():label='UPDATED'
+  )"
+```
+
+### Advanced Commands
+
+#### Comprehensive Image Information (JSON Format)
+```bash
+gcloud artifacts docker images describe {GAR_LOCATION}-docker.pkg.dev/{GCP_PROJECT_ID}/{GAR_REPOSITORY}/n8n:latest \
+  --format=json
+```
+
+#### List Images with Full Registry Paths
+```bash
+gcloud artifacts docker images list {GAR_LOCATION}-docker.pkg.dev/{GCP_PROJECT_ID}/{GAR_REPOSITORY} \
+  --format="value(package)" \
+  --include-tags
+```
+
+#### Security Vulnerability Scanning
+```bash
+gcloud artifacts docker images scan {GAR_LOCATION}-docker.pkg.dev/{GCP_PROJECT_ID}/{GAR_REPOSITORY}/n8n:latest
+```
+
+#### List Images Sorted by Creation Time (Newest First)
+```bash
+gcloud artifacts docker images list {GAR_LOCATION}-docker.pkg.dev/{GCP_PROJECT_ID}/{GAR_REPOSITORY} \
+  --include-tags \
+  --sort-by="~create_time" \
+  --format="table(package,version,create_time,update_time)"
+```
+
+### Quick Commands for Your N8N Images
+
+#### List Your N8N Images
+```bash
+gcloud artifacts docker images list {GAR_LOCATION}-docker.pkg.dev/{GCP_PROJECT_ID}/{GAR_REPOSITORY}
+```
+
+#### Get Detailed Info About Latest N8N Image
+```bash
+gcloud artifacts docker images describe {GAR_LOCATION}-docker.pkg.dev/{GCP_PROJECT_ID}/{GAR_REPOSITORY}/n8n:latest
+```
+
+#### Show Full Registry Path and Details
+```bash
+gcloud artifacts docker images list {GAR_LOCATION}-docker.pkg.dev/{GCP_PROJECT_ID}/{GAR_REPOSITORY} \
+  --include-tags \
+  --format="table(package,version,create_time.date(),update_time.date())"
+```
+
+### Output Format Options
+
+- `--format=json` - Complete JSON output with all details
+- `--format=yaml` - YAML format for readability
+- `--format="table(...)"` - Custom table format
+- `--include-tags` - Shows all tags for images
+
+### Example Commands
+With your actual values set as environment variables:
+```bash
+# Example outputs with your specific configuration:
+gcloud artifacts docker images list us-central1-docker.pkg.dev/anyflow-helm/n8n-images
+gcloud artifacts docker images describe us-central1-docker.pkg.dev/anyflow-helm/n8n-images/n8n:latest
+```
+
 ## Kubernetes Deployment
 
 Use these images in your Kubernetes manifests or Helm charts:
@@ -141,6 +254,11 @@ spec:
 - Check the GitHub Actions logs for detailed error messages
 - Verify that the base Docker images are accessible
 - Ensure sufficient build resources are available
+
+### Image Management Issues
+- Use the `describe` command for comprehensive information including image digest, size, creation time, and metadata
+- Use `--include-tags` to see all available tags for an image
+- Vulnerability scanning requires enabling the Container Analysis API
 
 ## Security Considerations
 
