@@ -57,19 +57,19 @@ gcloud artifacts repositories create $REPOSITORY \
 
 ```bash
 # Create service account
-gcloud iam service-accounts create github-actions-n8n \
+gcloud iam service-accounts create github-actions-key \
     --description="Service account for GitHub Actions n8n builds" \
     --display-name="GitHub Actions n8n" \
     --project=$PROJECT_ID
 
 # Grant necessary permissions
 gcloud projects add-iam-policy-binding $PROJECT_ID \
-    --member="serviceAccount:github-actions-n8n@$PROJECT_ID.iam.gserviceaccount.com" \
+    --member="serviceAccount:github-actions-key@$PROJECT_ID.iam.gserviceaccount.com" \
     --role="roles/artifactregistry.writer"
 
 # Create and download key
 gcloud iam service-accounts keys create github-actions-key.json \
-    --iam-account="github-actions-n8n@$PROJECT_ID.iam.gserviceaccount.com" \
+    --iam-account="github-actions-key@$PROJECT_ID.iam.gserviceaccount.com" \
     --project=$PROJECT_ID
 ```
 
