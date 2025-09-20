@@ -139,6 +139,24 @@ export async function signup(
 	);
 }
 
+export async function signupCloud(
+	context: IRestApiContext,
+	params: {
+		firstName: string;
+		lastName: string;
+		email: string;
+		password: string;
+		agree?: boolean;
+	},
+): Promise<CurrentUserResponse> {
+	return await makeRestApiRequest(
+		context,
+		'POST',
+		'/signup/cloud',
+		params as unknown as IDataObject,
+	);
+}
+
 export async function sendForgotPasswordEmail(
 	context: IRestApiContext,
 	params: { email: string },

@@ -48,6 +48,7 @@ const SettingsLogStreamingView = async () => await import('./views/SettingsLogSt
 const SetupView = async () => await import('./views/SetupView.vue');
 const SigninView = async () => await import('./views/SigninView.vue');
 const SignupView = async () => await import('./views/SignupView.vue');
+const SignupCloudView = async () => await import('./views/SignupCloudView.vue');
 const TemplatesCollectionView = async () => await import('@/views/TemplatesCollectionView.vue');
 const TemplatesWorkflowView = async () => await import('@/views/TemplatesWorkflowView.vue');
 const SetupWorkflowFromTemplateView = async () =>
@@ -431,6 +432,19 @@ export const routes: RouteRecordRaw[] = [
 		name: VIEWS.SIGNUP,
 		components: {
 			default: SignupView,
+		},
+		meta: {
+			telemetry: {
+				pageCategory: 'auth',
+			},
+			middleware: ['guest'],
+		},
+	},
+	{
+		path: '/signup/cloud',
+		name: VIEWS.SIGNUP_CLOUD,
+		components: {
+			default: SignupCloudView,
 		},
 		meta: {
 			telemetry: {

@@ -56,6 +56,8 @@ const formConfig: IFormBoxConfig = reactive({
 	buttonText: locale.baseText('auth.signin'),
 	redirectText: locale.baseText('forgotPassword'),
 	redirectLink: '/forgot-password',
+	secondaryRedirectText: 'Sign up for cloud account',
+	secondaryRedirectLink: '/signup/cloud',
 	inputs: [
 		{
 			name: 'emailOrLdapLoginId',

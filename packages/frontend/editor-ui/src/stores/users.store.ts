@@ -263,6 +263,19 @@ export const useUsersStore = defineStore(STORES.USERS, () => {
 		}
 	};
 
+	const signupCloud = async (params: {
+		firstName: string;
+		lastName: string;
+		email: string;
+		password: string;
+		agree?: boolean;
+	}) => {
+		const user = await usersApi.signupCloud(rootStore.restApiContext, params);
+		if (user) {
+			setCurrentUser(user);
+		}
+	};
+
 	const sendForgotPasswordEmail = async (params: { email: string }) => {
 		await usersApi.sendForgotPasswordEmail(rootStore.restApiContext, params);
 	};
@@ -458,6 +471,7 @@ export const useUsersStore = defineStore(STORES.USERS, () => {
 		createOwner,
 		validateSignupToken,
 		acceptInvitation,
+		signupCloud,
 		sendForgotPasswordEmail,
 		validatePasswordToken,
 		changePassword,

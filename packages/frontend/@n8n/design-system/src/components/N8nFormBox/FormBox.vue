@@ -20,6 +20,8 @@ interface FormBoxProps {
 	secondaryButtonText?: string;
 	redirectText?: string;
 	redirectLink?: string;
+	secondaryRedirectText?: string;
+	secondaryRedirectLink?: string;
 }
 
 defineOptions({ name: 'N8nFormBox' });
@@ -78,6 +80,9 @@ const onSecondaryButtonClick = (event: Event) => emit('secondaryClick', event);
 		<div :class="$style.actionContainer">
 			<N8nLink v-if="redirectText && redirectLink" :to="redirectLink">
 				{{ redirectText }}
+			</N8nLink>
+			<N8nLink v-if="secondaryRedirectText && secondaryRedirectLink" :to="secondaryRedirectLink">
+				{{ secondaryRedirectText }}
 			</N8nLink>
 		</div>
 		<slot></slot>

@@ -1,4 +1,4 @@
-import { LoginRequestDto, ResolveSignupTokenQueryDto } from '@n8n/api-types';
+import { LoginRequestDto, ResolveSignupTokenQueryDto, CloudSignupRequestDto } from '@n8n/api-types';
 import { Logger } from '@n8n/backend-common';
 import type { User, PublicUser } from '@n8n/db';
 import { UserRepository, AuthenticatedRequest, GLOBAL_OWNER_ROLE } from '@n8n/db';
@@ -183,6 +183,52 @@ export class AuthController {
 
 		const { firstName, lastName } = inviter;
 		return { inviter: { firstName, lastName } };
+	}
+
+	/** Sign up a cloud user */
+	@Post('/signup/cloud', { skipAuth: true, rateLimit: true })
+	async signupCloud(
+		req: AuthlessRequest,
+		res: Response,
+		@Body payload: CloudSignupRequestDto,
+	): Promise<PublicUser> {
+		const { email } = payload;
+
+		if (!isEmail(email)) {
+			throw new BadRequestError('Invalid email address');
+		}
+
+		const isWithinUsersLimit = this.license.isWithinUsersLimit();
+		if (!isWithinUsersLimit) {
+			this.logger.debug('Request to signup cloud user failed because of users quota reached', {
+				email,
+			});
+			throw new ForbiddenError(RESPONSE_ERROR_MESSAGES.USERS_QUOTA_REACHED);
+		}
+
+		try {
+			const user = await this.userService.createCloudUser(payload);
+
+			// Issue authentication cookie for the new user
+			this.authService.issueCookie(res, user, false, req.browserId);
+
+			this.eventService.emit('user-logged-in', {
+				user,
+				authenticationMethod: 'email',
+			});
+
+			return await this.userService.toPublic(user, {
+				posthog: this.postHog,
+				withScopes: true,
+				mfaAuthenticated: false,
+			});
+		} catch (error) {
+			this.logger.error('Cloud signup failed', { email, error: error.message });
+			if (error.message.includes('already exists')) {
+				throw new BadRequestError('User with this email already exists');
+			}
+			throw new BadRequestError('Failed to create cloud user account');
+		}
 	}
 
 	/** Log out a user */

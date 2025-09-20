@@ -1,4 +1,4 @@
-import type { RoleChangeRequestDto } from '@n8n/api-types';
+import type { RoleChangeRequestDto, CloudSignupRequestDto } from '@n8n/api-types';
 import { Logger } from '@n8n/backend-common';
 import type { PublicUser } from '@n8n/db';
 import { User, UserRepository } from '@n8n/db';
@@ -269,5 +269,43 @@ export class UserService {
 				await this.publicApiKeyService.removeOwnerOnlyScopesFromApiKeys(targetUser, trx);
 			}
 		});
+	}
+
+	async createCloudUser(data: CloudSignupRequestDto) {
+		const { firstName, lastName, email, password } = data;
+
+		// Check if user already exists
+		const existingUser = await this.userRepository.findOneBy({ email });
+		if (existingUser) {
+			throw new Error('User with this email already exists');
+		}
+
+		// Check that the member role exists
+		await this.roleService.checkRolesExist(['global:member'], 'global');
+
+		this.logger.debug('Creating cloud user', { email });
+
+		try {
+			const { user: savedUser } = await this.userRepository.createUserWithProject({
+				firstName,
+				lastName,
+				email,
+				password,
+				role: {
+					slug: 'global:member',
+				},
+			});
+
+			this.eventService.emit('user-signed-up', {
+				user: savedUser,
+				userType: 'email',
+				wasDisabledLdapUser: false,
+			});
+
+			return savedUser;
+		} catch (error) {
+			this.logger.error('Failed to create cloud user', { email, error });
+			throw new InternalServerError('An error occurred during cloud user creation', error);
+		}
 	}
 }

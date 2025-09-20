@@ -82,6 +82,8 @@ export type IFormBoxConfig = {
 	inputs: IFormInputs;
 	redirectLink?: string;
 	redirectText?: string;
+	secondaryRedirectLink?: string;
+	secondaryRedirectText?: string;
 };
 
 export type CheckboxLabelSizePropType = 'small' | 'medium' | undefined;
