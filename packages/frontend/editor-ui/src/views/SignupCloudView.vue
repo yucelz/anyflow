@@ -17,61 +17,129 @@ const toast = useToast();
 const i18n = useI18n();
 const router = useRouter();
 
-const FORM_CONFIG: IFormBoxConfig = {
-	title: 'Set up your cloud account',
-	buttonText: 'Create account',
-	inputs: [
-		{
-			name: 'firstName',
-			properties: {
-				label: i18n.baseText('auth.firstName'),
-				maxlength: 32,
-				required: true,
-				autocomplete: 'given-name',
-				capitalize: true,
-				focusInitially: true,
+const verificationCode = ref('');
+const userEmail = ref('');
+const isEmailVerified = ref(false);
+const showVerification = ref(false);
+
+async function sendVerificationCode(email: string) {
+	try {
+		// Save email for later use
+		userEmail.value = email;
+		// This should make API call to send verification email
+		const response = await usersStore.sendVerificationEmail(email);
+		showVerification.value = true;
+		toast.showMessage({
+			title: 'Verification Code Sent',
+			message: 'Please check your email for the verification code',
+			type: 'info',
+		});
+	} catch (error) {
+		toast.showError(error, 'Failed to send verification code');
+	}
+}
+
+async function verifyCode(code: string) {
+	try {
+		// This should make API call to verify the code
+		const response = await usersStore.verifyEmailCode(userEmail.value, code);
+		isEmailVerified.value = true;
+		toast.showMessage({
+			title: 'Email Verified',
+			message: 'You can now create your account',
+			type: 'success',
+		});
+	} catch (error) {
+		toast.showError(error, 'Invalid verification code');
+	}
+}
+
+const buttonText = computed(() => {
+	if (!showVerification.value) return 'Send Verification Code';
+	if (!isEmailVerified.value) return 'Verify Code';
+	return 'Create Account';
+});
+
+const FORM_CONFIG = computed(
+	(): IFormBoxConfig => ({
+		title: 'Set up your cloud account',
+		buttonText: buttonText.value,
+		inputs: [
+			{
+				name: 'firstName',
+				properties: {
+					label: i18n.baseText('auth.firstName'),
+					maxlength: 32,
+					required: true,
+					autocomplete: 'given-name',
+					capitalize: true,
+					focusInitially: true,
+				},
 			},
-		},
-		{
-			name: 'lastName',
-			properties: {
-				label: i18n.baseText('auth.lastName'),
-				maxlength: 32,
-				required: true,
-				autocomplete: 'family-name',
-				capitalize: true,
+			{
+				name: 'lastName',
+				properties: {
+					label: i18n.baseText('auth.lastName'),
+					maxlength: 32,
+					required: true,
+					autocomplete: 'family-name',
+					capitalize: true,
+				},
 			},
-		},
-		{
-			name: 'email',
-			properties: {
-				label: i18n.baseText('auth.email'),
-				type: 'email',
-				required: true,
-				autocomplete: 'email',
+			{
+				name: 'email',
+				properties: {
+					label: i18n.baseText('auth.email'),
+					type: 'email',
+					required: true,
+					autocomplete: 'email',
+				},
 			},
-		},
-		{
-			name: 'password',
-			properties: {
-				label: i18n.baseText('auth.password'),
-				type: 'password',
-				validationRules: [{ name: 'DEFAULT_PASSWORD_RULES' }],
-				required: true,
-				infoText: i18n.baseText('auth.defaultPasswordRequirements'),
-				autocomplete: 'new-password',
-				capitalize: true,
+			{
+				name: 'password',
+				properties: {
+					label: i18n.baseText('auth.password'),
+					type: 'password',
+					validationRules: [{ name: 'DEFAULT_PASSWORD_RULES' }],
+					required: true,
+					infoText: i18n.baseText('auth.defaultPasswordRequirements'),
+					autocomplete: 'new-password',
+					capitalize: true,
+				},
 			},
-		},
-		{
-			name: 'agree',
-			properties: {
-				label: i18n.baseText('auth.agreement.label'),
-				type: 'checkbox',
+			{
+				name: 'agree',
+				properties: {
+					label: i18n.baseText('auth.agreement.label'),
+					type: 'checkbox',
+				},
 			},
-		},
-	],
-};
+			...(showVerification.value
+				? [
+						{
+							name: 'verificationCode',
+							properties: {
+								label: 'Verification Code',
+								type: 'password' as const,
+								required: true,
+								maxlength: 6,
+								placeholder: 'Enter 6-digit code',
+								validationRules: [
+									{
+										name: 'REGEX',
+										config: {
+											regex: '^[0-9]{6}$',
+											message: 'Please enter a valid 6-digit code',
+										},
+									},
+								],
+							},
+						},
+					]
+				: []),
+		],
+	}),
+);
 
 const loading = ref(false);
 
@@ -81,6 +149,19 @@ const subtitle = computed(() => {
 
 async function onSubmit(values: { [key: string]: string | boolean }) {
 	try {
+		// If verification code hasn't been sent yet, send it
+		if (!showVerification.value) {
+			await sendVerificationCode(values.email as string);
+			return;
+		}
+
+		// If verification code was sent but not verified yet, verify it
+		if (!isEmailVerified.value) {
+			await verifyCode(values.verificationCode as string);
+			return;
+		}
+
+		// If email is verified, proceed with signup
 		loading.value = true;
 		await usersStore.signupCloud({
 			firstName: values.firstName as string,

@@ -25,7 +25,8 @@ type TemplateName =
 	| 'password-reset-requested'
 	| 'workflow-shared'
 	| 'credentials-shared'
-	| 'project-shared';
+	| 'project-shared'
+	| 'verification-code';
 
 @Service()
 export class UserManagementMailer {

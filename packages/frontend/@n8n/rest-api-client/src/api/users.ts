@@ -253,3 +253,17 @@ export async function updateGlobalRole(
 ): Promise<IUserResponse> {
 	return await makeRestApiRequest(context, 'PATCH', `/users/${id}/role`, { newRoleName });
 }
+
+export async function sendVerificationEmail(
+	context: IRestApiContext,
+	params: { email: string },
+): Promise<{ success: boolean; message: string }> {
+	return await makeRestApiRequest(context, 'POST', '/send-verification-email', params);
+}
+
+export async function verifyEmailCode(
+	context: IRestApiContext,
+	params: { email: string; code: string },
+): Promise<{ success: boolean; message: string }> {
+	return await makeRestApiRequest(context, 'POST', '/verify-email-code', params);
+}

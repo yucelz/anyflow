@@ -45,6 +45,7 @@ import { AddActivatedAtUserSetting1717498465931 } from './1717498465931-AddActiv
 import { FixExecutionMetadataSequence1721377157740 } from './1721377157740-FixExecutionMetadataSequence';
 import { MigrateTestDefinitionKeyToString1731582748663 } from './1731582748663-MigrateTestDefinitionKeyToString';
 import { UpdateParentFolderIdColumn1740445074052 } from './1740445074052-UpdateParentFolderIdColumn';
+import { CreateEmailVerificationTable1740445074053 } from './1740445074053-CreateEmailVerificationTable';
 import { CreateLdapEntities1674509946020 } from '../common/1674509946020-CreateLdapEntities';
 import { PurgeInvalidWorkflowConnections1675940580449 } from '../common/1675940580449-PurgeInvalidWorkflowConnections';
 import { RemoveResetPasswordColumns1690000000030 } from '../common/1690000000030-RemoveResetPasswordColumns';
@@ -181,6 +182,7 @@ export const postgresMigrations: Migration[] = [
 	CreateFolderTable1738709609940,
 	CreateAnalyticsTables1739549398681,
 	UpdateParentFolderIdColumn1740445074052,
+	CreateEmailVerificationTable1740445074053,
 	RenameAnalyticsToInsights1741167584277,
 	AddScopesColumnToApiKeys1742918400000,
 	AddWorkflowStatisticsRootCount1745587087521,

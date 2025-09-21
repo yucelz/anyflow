@@ -1,4 +1,10 @@
-import { LoginRequestDto, ResolveSignupTokenQueryDto, CloudSignupRequestDto } from '@n8n/api-types';
+import {
+	LoginRequestDto,
+	ResolveSignupTokenQueryDto,
+	CloudSignupRequestDto,
+	SendVerificationEmailRequestDto,
+	VerifyEmailCodeRequestDto,
+} from '@n8n/api-types';
 import { Logger } from '@n8n/backend-common';
 import type { User, PublicUser } from '@n8n/db';
 import { UserRepository, AuthenticatedRequest, GLOBAL_OWNER_ROLE } from '@n8n/db';
@@ -19,6 +25,7 @@ import { MfaService } from '@/mfa/mfa.service';
 import { PostHogClient } from '@/posthog';
 import { AuthlessRequest } from '@/requests';
 import { UserService } from '@/services/user.service';
+import { VerificationService } from '@/services/verification.service';
 import {
 	getCurrentAuthenticationMethod,
 	isLdapCurrentAuthenticationMethod,
@@ -35,6 +42,7 @@ export class AuthController {
 		private readonly license: License,
 		private readonly userRepository: UserRepository,
 		private readonly eventService: EventService,
+		private readonly verificationService: VerificationService,
 		private readonly postHog?: PostHogClient,
 	) {}
 
@@ -229,6 +237,50 @@ export class AuthController {
 			}
 			throw new BadRequestError('Failed to create cloud user account');
 		}
+	}
+
+	/** Send verification email */
+	@Post('/send-verification-email', { skipAuth: true, rateLimit: true })
+	async sendVerificationEmail(
+		_req: AuthlessRequest,
+		_res: Response,
+		@Body payload: SendVerificationEmailRequestDto,
+	) {
+		const { email } = payload;
+
+		if (!isEmail(email)) {
+			throw new BadRequestError('Invalid email address');
+		}
+
+		try {
+			await this.verificationService.sendVerificationEmail(email);
+			return { success: true, message: 'Verification email sent successfully' };
+		} catch (error) {
+			this.logger.error('Failed to send verification email', { email, error: error.message });
+			throw new BadRequestError('Failed to send verification email');
+		}
+	}
+
+	/** Verify email code */
+	@Post('/verify-email-code', { skipAuth: true, rateLimit: true })
+	async verifyEmailCode(
+		_req: AuthlessRequest,
+		_res: Response,
+		@Body payload: VerifyEmailCodeRequestDto,
+	) {
+		const { email, code } = payload;
+
+		if (!isEmail(email)) {
+			throw new BadRequestError('Invalid email address');
+		}
+
+		const isValid = await this.verificationService.verifyCode(email, code);
+
+		if (!isValid) {
+			throw new BadRequestError('Invalid or expired verification code');
+		}
+
+		return { success: true, message: 'Email verified successfully' };
 	}
 
 	/** Log out a user */

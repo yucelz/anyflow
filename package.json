@@ -41,7 +41,7 @@
     "version:internal": "node scripts/bump-internal-version.mjs",
     "version:release": "node scripts/prepare-release.mjs",
     "start": "run-script-os",
-    "start:default": "cd packages/cli/bin && ./n8n",
+    "start:default": "cd packages/cli/bin && bash -c 'set -a && source ../../../.env && set +a && ./n8n'",
     "start:tunnel": "./packages/cli/bin/n8n start --tunnel",
     "start:windows": "cd packages/cli/bin && n8n",
     "test": "JEST_JUNIT_CLASSNAME={filepath} turbo run test",

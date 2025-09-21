@@ -4,6 +4,7 @@ import { ApiKey } from './api-key';
 import { AuthIdentity } from './auth-identity';
 import { AuthProviderSyncHistory } from './auth-provider-sync-history';
 import { CredentialsEntity } from './credentials-entity';
+import { EmailVerification } from './email-verification';
 import { EventDestinations } from './event-destinations';
 import { ExecutionAnnotation } from './execution-annotation.ee';
 import { ExecutionData } from './execution-data';
@@ -41,6 +42,7 @@ export {
 	WebhookEntity,
 	AuthIdentity,
 	CredentialsEntity,
+	EmailVerification,
 	Folder,
 	Project,
 	ProjectRelation,
@@ -76,6 +78,7 @@ export const entities = {
 	WebhookEntity,
 	AuthIdentity,
 	CredentialsEntity,
+	EmailVerification,
 	Folder,
 	Project,
 	ProjectRelation,

@@ -45,6 +45,7 @@ export const useUsersStore = defineStore(STORES.USERS, () => {
 	const currentUserId = ref<string | null>(null);
 	const usersById = ref<Record<string, IUser>>({});
 	const userQuota = ref<number>(-1);
+	const pendingVerifications = ref<Record<string, string>>({}); // email -> code mapping
 
 	const loginHooks = ref<LoginHook[]>([]);
 	const logoutHooks = ref<LogoutHook[]>([]);
@@ -445,6 +446,16 @@ export const useUsersStore = defineStore(STORES.USERS, () => {
 		{ immediate: false, resetOnExecute: false },
 	);
 
+	async function sendVerificationEmail(email: string) {
+		const response = await usersApi.sendVerificationEmail(rootStore.restApiContext, { email });
+		return response;
+	}
+
+	async function verifyEmailCode(email: string, code: string) {
+		const response = await usersApi.verifyEmailCode(rootStore.restApiContext, { email, code });
+		return response;
+	}
+
 	return {
 		initialized,
 		currentUserId,
@@ -501,5 +512,7 @@ export const useUsersStore = defineStore(STORES.USERS, () => {
 		submitContactEmail,
 		submitContactInfo,
 		usersList,
+		sendVerificationEmail,
+		verifyEmailCode,
 	};
 });

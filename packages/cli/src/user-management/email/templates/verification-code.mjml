@@ -1,0 +1,47 @@
+<mjml>
+	<mj-include path="./_common.mjml" />
+	<mj-body>
+		<mj-include path="./_logo.mjml" />
+		<mj-section>
+			<mj-column>
+				<mj-text font-size="24px">Your n8n verification code</mj-text>
+			</mj-column>
+		</mj-section>
+		<mj-section>
+			<mj-column>
+				<mj-text font-size="20px">Hi there,</mj-text>
+				<mj-text
+					>You're signing up for n8n at <b>{{ domain }}</b
+					>.</mj-text
+				>
+				<mj-text>Please use the following verification code to complete your registration:</mj-text>
+			</mj-column>
+		</mj-section>
+		<mj-section background-color="#f4f4f4" border-radius="8px" padding="20px">
+			<mj-column>
+				<mj-text
+					font-size="32px"
+					font-weight="bold"
+					align="center"
+					letter-spacing="8px"
+					color="#007bff"
+				>
+					{{ verificationCode }}
+				</mj-text>
+			</mj-column>
+		</mj-section>
+		<mj-section>
+			<mj-column>
+				<mj-text font-size="14px">
+					This code is valid for 10 minutes. If you didn't request this code, you can safely ignore
+					this email.
+				</mj-text>
+			</mj-column>
+		</mj-section>
+		<mj-section>
+			<mj-column>
+				<mj-text> Welcome to n8n! We're excited to have you on board. </mj-text>
+			</mj-column>
+		</mj-section>
+	</mj-body>
+</mjml>

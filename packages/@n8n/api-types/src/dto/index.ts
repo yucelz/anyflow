@@ -11,6 +11,10 @@ export { BinaryDataSignedQueryDto } from './binary-data/binary-data-signed-query
 export { LoginRequestDto } from './auth/login-request.dto';
 export { ResolveSignupTokenQueryDto } from './auth/resolve-signup-token-query.dto';
 export { CloudSignupRequestDto } from './auth/cloud-signup-request.dto';
+export {
+	SendVerificationEmailRequestDto,
+	VerifyEmailCodeRequestDto,
+} from './auth/verification.dto';
 
 export { OptionsRequestDto } from './dynamic-node-parameters/options-request.dto';
 export { ResourceLocatorRequestDto } from './dynamic-node-parameters/resource-locator-request.dto';
