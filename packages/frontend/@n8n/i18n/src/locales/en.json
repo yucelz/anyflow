@@ -175,6 +175,7 @@
 	"auth.signin.error": "Problem logging in",
 	"auth.signout": "Sign out",
 	"auth.signout.error": "Could not sign out",
+	"auth.signup.cloud": "Sign up for Cloud",
 	"auth.signup.finishAccountSetup": "Finish account setup",
 	"auth.signup.missingTokenError": "Missing token",
 	"auth.signup.setupYourAccount": "Set up your account",

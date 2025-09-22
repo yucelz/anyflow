@@ -78,12 +78,22 @@ const onSecondaryButtonClick = (event: Event) => emit('secondaryClick', event);
 			/>
 		</div>
 		<div :class="$style.actionContainer">
-			<N8nLink v-if="redirectText && redirectLink" :to="redirectLink">
-				{{ redirectText }}
-			</N8nLink>
-			<N8nLink v-if="secondaryRedirectText && secondaryRedirectLink" :to="secondaryRedirectLink">
-				{{ secondaryRedirectText }}
-			</N8nLink>
+			<div v-if="redirectText && redirectLink" :class="$style.linkContainer">
+				<N8nLink :to="redirectLink">
+					{{ redirectText }}
+				</N8nLink>
+			</div>
+			<div v-if="secondaryRedirectText && secondaryRedirectLink" :class="$style.linkContainer">
+				<N8nLink :to="secondaryRedirectLink">
+					{{ secondaryRedirectText }}
+				</N8nLink>
+			</div>
+			<div v-if="secondaryRedirectText && secondaryRedirectLink" :class="$style.warningContainer">
+				<div :class="$style.warning">
+					⚠️ Warning: Demo Environment. Data persistence is not guaranteed—save your work
+					externally.
+				</div>
+			</div>
 		</div>
 		<slot></slot>
 	</div>
@@ -110,7 +120,30 @@ const onSecondaryButtonClick = (event: Event) => emit('secondaryClick', event);
 
 .actionContainer {
 	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--spacing-xs);
+}
+
+.linkContainer {
+	display: flex;
 	justify-content: center;
+}
+
+.warningContainer {
+	margin-top: var(--spacing-s);
+	width: 100%;
+}
+
+.warning {
+	background-color: #fff3cd;
+	color: #856404;
+	border: 1px solid #ffeaa7;
+	border-radius: var(--border-radius-base);
+	padding: var(--spacing-xs) var(--spacing-s);
+	font-size: var(--font-size-2xs);
+	text-align: center;
+	line-height: 1.4;
 }
 
 .buttonsContainer {
