@@ -184,6 +184,8 @@ export const useSettingsStore = defineStore(STORES.SETTINGS, () => {
 
 	const isDevRelease = computed(() => settings.value.releaseChannel === 'dev');
 
+	const isSubscriptionEnabled = computed(() => settings.value.subscriptionEnabled === true);
+
 	const setSettings = (newSettings: FrontendSettings) => {
 		settings.value = newSettings;
 
@@ -388,5 +390,6 @@ export const useSettingsStore = defineStore(STORES.SETTINGS, () => {
 		activeModules,
 		isModuleActive,
 		isDataTableFeatureEnabled,
+		isSubscriptionEnabled,
 	};
 });

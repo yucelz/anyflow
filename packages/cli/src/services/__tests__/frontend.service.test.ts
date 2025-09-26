@@ -1,5 +1,5 @@
 import type { Logger, LicenseState, ModuleRegistry } from '@n8n/backend-common';
-import type { GlobalConfig, SecurityConfig } from '@n8n/config';
+import type { GlobalConfig, SecurityConfig, SubscriptionConfig } from '@n8n/config';
 import { Container } from '@n8n/di';
 import { mock } from 'jest-mock-extended';
 import type { InstanceSettings, BinaryDataConfig } from 'n8n-core';
@@ -162,6 +162,10 @@ describe('FrontendService', () => {
 				isMFAEnforced: jest.fn().mockReturnValue(false),
 			});
 
+			const subscriptionConfig = mock<SubscriptionConfig>({
+				subscriptionEnabled: false,
+			});
+
 			return new FrontendService(
 				globalConfig,
 				logger,
@@ -178,6 +182,7 @@ describe('FrontendService', () => {
 				licenseState,
 				moduleRegistry,
 				mfaService,
+				subscriptionConfig,
 			);
 		};
 

@@ -13,6 +13,8 @@ import { ExecutionMetadata } from './execution-metadata';
 import { Folder } from './folder';
 import { FolderTagMapping } from './folder-tag-mapping';
 import { InvalidAuthToken } from './invalid-auth-token';
+import { Invoice } from './invoice';
+import { PaymentMethod } from './payment-method';
 import { ProcessedData } from './processed-data';
 import { Project } from './project';
 import { ProjectRelation } from './project-relation';
@@ -21,10 +23,13 @@ import { Scope } from './scope';
 import { Settings } from './settings';
 import { SharedCredentials } from './shared-credentials';
 import { SharedWorkflow } from './shared-workflow';
+import { SubscriptionPlan } from './subscription-plan';
 import { TagEntity } from './tag-entity';
 import { TestCaseExecution } from './test-case-execution.ee';
 import { TestRun } from './test-run.ee';
+import { UsageTracking } from './usage-tracking';
 import { User } from './user';
+import { UserSubscription } from './user-subscription';
 import { Variables } from './variables';
 import { WebhookEntity } from './webhook-entity';
 import { WorkflowEntity } from './workflow-entity';
@@ -66,6 +71,11 @@ export {
 	TestRun,
 	TestCaseExecution,
 	ExecutionEntity,
+	Invoice,
+	PaymentMethod,
+	SubscriptionPlan,
+	UsageTracking,
+	UserSubscription,
 };
 
 export const entities = {
@@ -102,4 +112,9 @@ export const entities = {
 	TestCaseExecution,
 	ExecutionEntity,
 	Role,
+	Invoice,
+	PaymentMethod,
+	SubscriptionPlan,
+	UsageTracking,
+	UserSubscription,
 };

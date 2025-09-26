@@ -32,3 +32,5 @@ export { SharedCredentialsRepository } from './shared-credentials.repository';
 export { WorkflowRepository } from './workflow.repository';
 export { WebhookRepository } from './webhook.repository';
 export { UserRepository } from './user.repository';
+export { SubscriptionPlanRepository } from './subscription-plan.repository';
+export { UserSubscriptionRepository } from './user-subscription.repository';

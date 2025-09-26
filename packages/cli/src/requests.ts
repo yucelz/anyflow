@@ -305,3 +305,73 @@ export declare namespace NpsSurveyRequest {
 	// once some schema validation is added
 	type NpsSurveyUpdate = AuthenticatedRequest<{}, {}, unknown>;
 }
+
+// ----------------------------------
+//         /subscriptions
+// ----------------------------------
+export declare namespace SubscriptionRequest {
+	type Create = AuthenticatedRequest<
+		{},
+		{},
+		{
+			planSlug: string;
+			billingCycle: 'monthly' | 'yearly';
+			paymentMethodId?: string;
+		}
+	>;
+
+	type Upgrade = AuthenticatedRequest<
+		{ id: string },
+		{},
+		{
+			planSlug: string;
+		}
+	>;
+
+	type Cancel = AuthenticatedRequest<
+		{ id: string },
+		{},
+		{
+			cancelAtPeriodEnd?: boolean;
+		}
+	>;
+}
+
+// ----------------------------------
+//            /webhooks
+// ----------------------------------
+export declare namespace WebhookRequest {
+	type AdyenWebhook = AuthlessRequest<
+		{},
+		{},
+		{
+			eventCode: string;
+			pspReference: string;
+			merchantReference?: string;
+			amount?: {
+				value: number;
+				currency: string;
+			};
+			success?: boolean;
+			reason?: string;
+			additionalData?: Record<string, string>;
+		}
+	>;
+
+	type SubscriptionEvent = AuthlessRequest<
+		{},
+		{},
+		{
+			eventType:
+				| 'subscription.created'
+				| 'subscription.updated'
+				| 'subscription.canceled'
+				| 'payment.succeeded'
+				| 'payment.failed';
+			data: {
+				id: string;
+				subscriptionId?: string;
+			};
+		}
+	>;
+}

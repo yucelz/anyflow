@@ -1,6 +1,6 @@
 import type { FrontendSettings, ITelemetrySettings, N8nEnvFeatFlags } from '@n8n/api-types';
 import { LicenseState, Logger, ModuleRegistry } from '@n8n/backend-common';
-import { GlobalConfig, SecurityConfig } from '@n8n/config';
+import { GlobalConfig, SecurityConfig, SubscriptionConfig } from '@n8n/config';
 import { LICENSE_FEATURES } from '@n8n/constants';
 import { Container, Service } from '@n8n/di';
 import { createWriteStream } from 'fs';
@@ -54,6 +54,7 @@ export class FrontendService {
 		private readonly licenseState: LicenseState,
 		private readonly moduleRegistry: ModuleRegistry,
 		private readonly mfaService: MfaService,
+		private readonly subscriptionConfig: SubscriptionConfig,
 	) {
 		loadNodesAndCredentials.addPostProcessor(async () => await this.generateTypes());
 		void this.generateTypes();
@@ -289,6 +290,7 @@ export class FrontendService {
 			},
 			activeModules: this.moduleRegistry.getActiveModules(),
 			envFeatureFlags: this.collectEnvFeatureFlags(),
+			subscriptionEnabled: this.subscriptionConfig.subscriptionEnabled,
 		};
 	}
 
