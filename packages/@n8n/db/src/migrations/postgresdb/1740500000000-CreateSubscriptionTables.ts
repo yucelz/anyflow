@@ -21,8 +21,8 @@ export class CreateSubscriptionTables1740500000000 implements ReversibleMigratio
 				is_popular boolean DEFAULT false,
 				sort_order integer DEFAULT 0,
 				trial_days integer DEFAULT 14,
-				created_at timestamptz(3) DEFAULT CURRENT_TIMESTAMP(3),
-				updated_at timestamptz(3) DEFAULT CURRENT_TIMESTAMP(3)
+				"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+				"updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 			);
 		`);
 
@@ -49,8 +49,8 @@ export class CreateSubscriptionTables1740500000000 implements ReversibleMigratio
 				paypal_customer_id varchar(255),
 				square_customer_id varchar(255),
 				metadata jsonb,
-				created_at timestamptz(3) DEFAULT CURRENT_TIMESTAMP(3),
-				updated_at timestamptz(3) DEFAULT CURRENT_TIMESTAMP(3)
+				"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+				"updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 			);
 		`);
 
@@ -69,8 +69,8 @@ export class CreateSubscriptionTables1740500000000 implements ReversibleMigratio
 				provider_payment_method_id varchar(255) NOT NULL,
 				billing_address jsonb,
 				is_active boolean DEFAULT true,
-				created_at timestamptz(3) DEFAULT CURRENT_TIMESTAMP(3),
-				updated_at timestamptz(3) DEFAULT CURRENT_TIMESTAMP(3)
+				"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+				"updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 			);
 		`);
 
@@ -93,8 +93,8 @@ export class CreateSubscriptionTables1740500000000 implements ReversibleMigratio
 				paypal_invoice_id varchar(255),
 				square_invoice_id varchar(255),
 				metadata jsonb,
-				created_at timestamptz(3) DEFAULT CURRENT_TIMESTAMP(3),
-				updated_at timestamptz(3) DEFAULT CURRENT_TIMESTAMP(3)
+				"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+				"updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 			);
 		`);
 
@@ -109,8 +109,8 @@ export class CreateSubscriptionTables1740500000000 implements ReversibleMigratio
 				credentials_count integer DEFAULT 0,
 				users_count integer DEFAULT 0,
 				storage_used bigint DEFAULT 0,
-				created_at timestamptz(3) DEFAULT CURRENT_TIMESTAMP(3),
-				updated_at timestamptz(3) DEFAULT CURRENT_TIMESTAMP(3),
+				"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+				"updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 				UNIQUE(user_id, date)
 			);
 		`);
