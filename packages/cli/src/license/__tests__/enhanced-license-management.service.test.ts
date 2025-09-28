@@ -16,7 +16,6 @@ import {
 	LicenseLimits,
 	LicenseTemplateEntity,
 } from '@n8n/db';
-import { generateNanoId } from '@n8n/db';
 import { BadRequestError } from '@/errors/response-errors/bad-request.error';
 
 import {
@@ -29,10 +28,10 @@ import { ApprovalWorkflowService } from '../approval-workflow.service';
 import { LicenseValidationService } from '../license-validation.service';
 import { OwnerAccessControlService } from '../owner-access-control.service';
 
-// Mock generateNanoId
-jest.mock('@n8n/db', () => ({
-	...jest.requireActual('@n8n/db'),
-	generateNanoId: jest.fn(),
+// Mock randomUUID
+jest.mock('crypto', () => ({
+	...jest.requireActual('crypto'),
+	randomUUID: jest.fn(),
 }));
 
 describe('EnhancedLicenseManagementService', () => {
@@ -73,8 +72,8 @@ describe('EnhancedLicenseManagementService', () => {
 		limits: { maxUsers: 100 },
 		metadata: {},
 		approvalStatus: 'approved',
-		subscriptionId: null,
-		parentLicenseId: null,
+		subscriptionId: undefined,
+		parentLicenseId: undefined,
 		createdAt: new Date(),
 		updatedAt: new Date(),
 	});
@@ -95,7 +94,8 @@ describe('EnhancedLicenseManagementService', () => {
 
 	beforeEach(() => {
 		jest.clearAllMocks();
-		(generateNanoId as jest.Mock).mockReturnValue('license-123');
+		const { randomUUID } = require('crypto');
+		(randomUUID as jest.Mock).mockReturnValue('license-123');
 	});
 
 	describe('createLicense', () => {
@@ -412,14 +412,15 @@ describe('EnhancedLicenseManagementService', () => {
 
 	describe('generateLicenseKey', () => {
 		it('should generate license key with correct format', () => {
-			(generateNanoId as jest.Mock).mockReturnValue('ABC123DEF456');
+			const { randomUUID } = require('crypto');
+			(randomUUID as jest.Mock).mockReturnValue('12345678-1234-1234-1234-123456789abc');
 			const mockDate = new Date('2023-01-01T00:00:00Z');
 			jest.spyOn(Date, 'now').mockReturnValue(mockDate.getTime());
 
 			// Access private method through any cast for testing
 			const licenseKey = (enhancedLicenseService as any).generateLicenseKey('enterprise');
 
-			expect(licenseKey).toMatch(/^ENT-[A-Z0-9]+-ABC123DEF456$/);
+			expect(licenseKey).toMatch(/^ENT-[A-Z0-9]+-[A-Z0-9]{8}$/);
 		});
 	});
 });

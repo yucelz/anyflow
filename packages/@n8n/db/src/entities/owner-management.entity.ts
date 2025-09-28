@@ -4,13 +4,11 @@ import {
 	Index,
 	JoinColumn,
 	ManyToOne,
-	CreateDateColumn,
-	UpdateDateColumn,
 	PrimaryColumn,
 	BeforeInsert,
 } from '@n8n/typeorm';
 import { v4 as uuid } from 'uuid';
-import { datetimeColumnType } from './abstract-entity';
+import { WithTimestamps } from './abstract-entity';
 import { User } from './user';
 
 export interface OwnerPermissions {
@@ -32,7 +30,7 @@ export interface OwnerSettings {
 
 @Entity('owner_management')
 @Index(['ownerId'], { unique: true })
-export class OwnerManagementEntity {
+export class OwnerManagementEntity extends WithTimestamps {
 	@PrimaryColumn('uuid')
 	id: string;
 
@@ -47,20 +45,6 @@ export class OwnerManagementEntity {
 
 	@Column({ type: 'json' })
 	settings: OwnerSettings;
-
-	@CreateDateColumn({
-		precision: 3,
-		type: datetimeColumnType,
-		name: 'created_at',
-	})
-	createdAt: Date;
-
-	@UpdateDateColumn({
-		precision: 3,
-		type: datetimeColumnType,
-		name: 'updated_at',
-	})
-	updatedAt: Date;
 
 	@BeforeInsert()
 	generateId() {

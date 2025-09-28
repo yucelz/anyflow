@@ -21,8 +21,8 @@ import {
 	LicenseTemplateEntity,
 } from '@n8n/db';
 import { LicenseAuditAction } from '@n8n/db';
-import { generateNanoId } from '@n8n/db';
 import { BadRequestError } from '@/errors/response-errors/bad-request.error';
+import { randomUUID } from 'crypto';
 import { ApprovalWorkflowService } from './approval-workflow.service';
 import { LicenseValidationService } from './license-validation.service';
 import { OwnerAccessControlService } from './owner-access-control.service';
@@ -106,7 +106,7 @@ export class EnhancedLicenseManagementService {
 
 		// Create license entity
 		const license = this.licenseRepository.create({
-			id: generateNanoId(),
+			id: randomUUID(),
 			licenseKey,
 			licenseType: request.licenseType,
 			status: 'pending',
@@ -292,7 +292,7 @@ export class EnhancedLicenseManagementService {
 		this.logger.info('Submitting license request', { request, requestedBy });
 
 		return await this.approvalWorkflow.submitApproval({
-			licenseId: generateNanoId(), // Temporary ID for new license requests
+			licenseId: randomUUID(), // Temporary ID for new license requests
 			requestedBy,
 			approvalType: 'creation',
 			requestData: request,
@@ -403,7 +403,7 @@ export class EnhancedLicenseManagementService {
 	private generateLicenseKey(licenseType: LicenseType): string {
 		const prefix = licenseType.toUpperCase().substring(0, 3);
 		const timestamp = Date.now().toString(36);
-		const random = generateNanoId();
+		const random = randomUUID().replace(/-/g, '').substring(0, 8);
 		return `${prefix}-${timestamp}-${random}`.toUpperCase();
 	}
 }

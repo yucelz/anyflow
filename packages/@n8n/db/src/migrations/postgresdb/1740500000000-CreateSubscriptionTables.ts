@@ -22,7 +22,7 @@ export class CreateSubscriptionTables1740500000000 implements ReversibleMigratio
 				sort_order integer DEFAULT 0,
 				trial_days integer DEFAULT 14,
 				"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-				"updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+				"updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
 			);
 		`);
 
@@ -50,7 +50,7 @@ export class CreateSubscriptionTables1740500000000 implements ReversibleMigratio
 				square_customer_id varchar(255),
 				metadata jsonb,
 				"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-				"updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+				"updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
 			);
 		`);
 
@@ -70,7 +70,7 @@ export class CreateSubscriptionTables1740500000000 implements ReversibleMigratio
 				billing_address jsonb,
 				is_active boolean DEFAULT true,
 				"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-				"updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+				"updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
 			);
 		`);
 
@@ -94,7 +94,7 @@ export class CreateSubscriptionTables1740500000000 implements ReversibleMigratio
 				square_invoice_id varchar(255),
 				metadata jsonb,
 				"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-				"updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+				"updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
 			);
 		`);
 

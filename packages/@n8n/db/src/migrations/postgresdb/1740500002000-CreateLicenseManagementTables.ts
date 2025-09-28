@@ -22,8 +22,8 @@ export class CreateLicenseManagementTables1740500002000 implements ReversibleMig
 				rejection_reason text,
 				subscription_id uuid,
 				parent_license_id uuid,
-				created_at timestamptz(3) DEFAULT CURRENT_TIMESTAMP(3),
-				updated_at timestamptz(3) DEFAULT CURRENT_TIMESTAMP(3)
+				"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+				"updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
 			);
 		`);
 
@@ -40,8 +40,8 @@ export class CreateLicenseManagementTables1740500002000 implements ReversibleMig
 				requires_approval boolean DEFAULT true,
 				is_active boolean DEFAULT true,
 				created_by uuid NOT NULL,
-				created_at timestamptz(3) DEFAULT CURRENT_TIMESTAMP(3),
-				updated_at timestamptz(3) DEFAULT CURRENT_TIMESTAMP(3)
+				"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+				"updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
 			);
 		`);
 
@@ -61,8 +61,8 @@ export class CreateLicenseManagementTables1740500002000 implements ReversibleMig
 				rejection_reason text,
 				expires_at timestamp NOT NULL,
 				priority varchar(50) DEFAULT 'medium',
-				created_at timestamptz(3) DEFAULT CURRENT_TIMESTAMP(3),
-				updated_at timestamptz(3) DEFAULT CURRENT_TIMESTAMP(3)
+				"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+				"updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
 			);
 		`);
 
@@ -79,8 +79,8 @@ export class CreateLicenseManagementTables1740500002000 implements ReversibleMig
 				ip_address varchar(45),
 				user_agent text,
 				metadata jsonb,
-				created_at timestamptz(3) DEFAULT CURRENT_TIMESTAMP(3),
-				updated_at timestamptz(3) DEFAULT CURRENT_TIMESTAMP(3)
+				"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+				"updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
 			);
 		`);
 
@@ -92,8 +92,8 @@ export class CreateLicenseManagementTables1740500002000 implements ReversibleMig
 				permissions jsonb NOT NULL,
 				delegated_users jsonb,
 				settings jsonb NOT NULL,
-				created_at timestamptz(3) DEFAULT CURRENT_TIMESTAMP(3),
-				updated_at timestamptz(3) DEFAULT CURRENT_TIMESTAMP(3)
+				"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+				"updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
 			);
 		`);
 
@@ -157,7 +157,7 @@ export class CreateLicenseManagementTables1740500002000 implements ReversibleMig
 			`CREATE INDEX idx_license_audit_log_performed_by ON ${tablePrefix}license_audit_log(performed_by);`,
 		);
 		await queryRunner.query(
-			`CREATE INDEX idx_license_audit_log_created_at ON ${tablePrefix}license_audit_log(created_at);`,
+			`CREATE INDEX idx_license_audit_log_createdAt ON ${tablePrefix}license_audit_log("createdAt");`,
 		);
 
 		// Create indexes for owner_management table

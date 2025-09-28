@@ -1,7 +1,17 @@
-import { Column, Entity, Index, JoinColumn, ManyToOne, OneToMany } from '@n8n/typeorm';
-import { WithTimestampsAndStringId, DateTimeColumn } from './abstract-entity';
+import {
+	Column,
+	Entity,
+	Index,
+	JoinColumn,
+	ManyToOne,
+	OneToMany,
+	PrimaryColumn,
+} from '@n8n/typeorm';
+import { WithTimestamps, DateTimeColumn } from './abstract-entity';
 import { User } from './user';
 import { UserSubscription } from './user-subscription';
+import { LicenseApprovalEntity } from './license-approval.entity';
+import { LicenseAuditLogEntity } from './license-audit-log.entity';
 
 export type LicenseType = 'community' | 'trial' | 'enterprise' | 'custom';
 export type LicenseStatus = 'pending' | 'active' | 'suspended' | 'expired' | 'revoked';
@@ -37,7 +47,10 @@ export interface LicenseLimits {
 @Index(['licenseType'])
 @Index(['validFrom', 'validUntil'])
 @Index(['approvalStatus'])
-export class LicenseEntity extends WithTimestampsAndStringId {
+export class LicenseEntity extends WithTimestamps {
+	@PrimaryColumn('uuid')
+	id: string;
+
 	@Column({ type: 'varchar', length: 500, unique: true })
 	licenseKey: string;
 
@@ -112,4 +125,16 @@ export class LicenseEntity extends WithTimestampsAndStringId {
 		(license) => license.parentLicense,
 	)
 	childLicenses?: LicenseEntity[];
+
+	@OneToMany(
+		() => LicenseApprovalEntity,
+		(approval) => approval.license,
+	)
+	approvals?: LicenseApprovalEntity[];
+
+	@OneToMany(
+		() => LicenseAuditLogEntity,
+		(auditLog) => auditLog.license,
+	)
+	auditLogs?: LicenseAuditLogEntity[];
 }

@@ -1,5 +1,5 @@
-import { Column, Entity, Index, JoinColumn, ManyToOne } from '@n8n/typeorm';
-import { WithTimestampsAndStringId } from './abstract-entity';
+import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from '@n8n/typeorm';
+import { WithTimestamps } from './abstract-entity';
 import { User } from './user';
 import { LicenseEntity } from './license.entity';
 
@@ -14,7 +14,9 @@ export type ApprovalPriority = 'low' | 'medium' | 'high' | 'critical';
 @Index(['requestedBy'])
 @Index(['expiresAt'])
 @Index(['priority'])
-export class LicenseApprovalEntity extends WithTimestampsAndStringId {
+export class LicenseApprovalEntity extends WithTimestamps {
+	@PrimaryGeneratedColumn('uuid')
+	id: string;
 	@Column({ type: 'uuid' })
 	licenseId: string;
 

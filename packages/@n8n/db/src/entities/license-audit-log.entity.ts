@@ -1,5 +1,5 @@
-import { Column, Entity, Index, JoinColumn, ManyToOne } from '@n8n/typeorm';
-import { WithTimestampsAndStringId } from './abstract-entity';
+import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from '@n8n/typeorm';
+import { WithTimestamps } from './abstract-entity';
 import { User } from './user';
 import { LicenseEntity } from './license.entity';
 
@@ -17,8 +17,10 @@ export type LicenseAuditAction =
 @Index(['licenseId'])
 @Index(['action'])
 @Index(['performedBy'])
-@Index(['createdAt'])
-export class LicenseAuditLogEntity extends WithTimestampsAndStringId {
+//@Index(['createdAt'])
+export class LicenseAuditLogEntity extends WithTimestamps {
+	@PrimaryGeneratedColumn('uuid')
+	id: string;
 	@Column({ type: 'uuid' })
 	licenseId: string;
 

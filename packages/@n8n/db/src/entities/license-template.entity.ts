@@ -1,5 +1,5 @@
-import { Column, Entity, Index, JoinColumn, ManyToOne } from '@n8n/typeorm';
-import { WithTimestampsAndStringId } from './abstract-entity';
+import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from '@n8n/typeorm';
+import { WithTimestamps } from './abstract-entity';
 import { User } from './user';
 import { LicenseFeatures, LicenseLimits, LicenseType } from './license.entity';
 
@@ -8,7 +8,9 @@ import { LicenseFeatures, LicenseLimits, LicenseType } from './license.entity';
 @Index(['licenseType'])
 @Index(['isActive'])
 @Index(['createdBy'])
-export class LicenseTemplateEntity extends WithTimestampsAndStringId {
+export class LicenseTemplateEntity extends WithTimestamps {
+	@PrimaryGeneratedColumn('uuid')
+	id: string;
 	@Column({ type: 'varchar', length: 255, unique: true })
 	name: string;
 

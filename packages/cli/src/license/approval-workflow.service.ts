@@ -2,8 +2,8 @@ import { Service } from '@n8n/di';
 import { Logger } from '@n8n/backend-common';
 import { LicenseApprovalRepository, OwnerManagementRepository } from '@n8n/db';
 import { LicenseApprovalEntity, ApprovalType, ApprovalPriority } from '@n8n/db';
-import { generateNanoId } from '@n8n/db';
 import { BadRequestError } from '@/errors/response-errors/bad-request.error';
+import { randomUUID } from 'crypto';
 
 export interface SubmitApprovalRequest {
 	licenseId: string;
@@ -35,7 +35,7 @@ export class ApprovalWorkflowService {
 		expiresAt.setDate(expiresAt.getDate() + 7);
 
 		const approval = this.approvalRepository.create({
-			id: generateNanoId(),
+			id: randomUUID(),
 			licenseId: request.licenseId,
 			requestedBy: request.requestedBy,
 			approvalType: request.approvalType,
