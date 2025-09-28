@@ -36,6 +36,8 @@ export class License implements LicenseProvider {
 
 	private isShuttingDown = false;
 
+	private localLicenseData: any = null;
+
 	constructor(
 		private readonly logger: Logger,
 		private readonly instanceSettings: InstanceSettings,
@@ -58,6 +60,9 @@ export class License implements LicenseProvider {
 			this.logger.warn('License manager already shutting down');
 			return;
 		}
+
+		// Load local license data first
+		await this.loadLocalLicenseData();
 
 		const { instanceType } = this.instanceSettings;
 		const isMainInstance = instanceType === 'main';
@@ -168,12 +173,19 @@ export class License implements LicenseProvider {
 	}
 
 	async activate(activationKey: string): Promise<void> {
+		// Check if this is a locally generated license key
+		if (this.isLocalLicenseKey(activationKey)) {
+			await this.activateLocalLicense(activationKey);
+			return;
+		}
+
+		// Use SDK for external/cloud licenses
 		if (!this.manager) {
 			return;
 		}
 
 		await this.manager.activate(activationKey);
-		this.logger.debug('License activated');
+		this.logger.debug('License activated via SDK');
 	}
 
 	@OnPubSubEvent('reload-license')
@@ -215,10 +227,6 @@ export class License implements LicenseProvider {
 
 		await this.manager.shutdown();
 		this.logger.debug('License shut down');
-	}
-
-	isLicensed(feature: BooleanLicenseFeature) {
-		return this.manager?.hasFeatureEnabled(feature) ?? false;
 	}
 
 	/** @deprecated Use `LicenseState.isSharingLicensed` instead. */
@@ -341,10 +349,6 @@ export class License implements LicenseProvider {
 		return this.isLicensed(LICENSE_FEATURES.FOLDERS);
 	}
 
-	getCurrentEntitlements() {
-		return this.manager?.getCurrentEntitlements() ?? [];
-	}
-
 	getValue<T extends keyof FeatureReturnType>(feature: T): FeatureReturnType[T] {
 		return this.manager?.getFeatureValue(feature) as FeatureReturnType[T];
 	}
@@ -412,10 +416,6 @@ export class License implements LicenseProvider {
 		return this.getValue(LICENSE_QUOTAS.TEAM_PROJECT_LIMIT) ?? 0;
 	}
 
-	getPlanName(): string {
-		return this.getValue('planName') ?? 'Community';
-	}
-
 	getInfo(): string {
 		if (!this.manager) {
 			return 'n/a';
@@ -453,5 +453,187 @@ export class License implements LicenseProvider {
 					error: error instanceof Error ? error.message : error,
 				});
 			});
+	}
+
+	/**
+	 * Check if a license key is locally generated
+	 */
+	private isLocalLicenseKey(licenseKey: string): boolean {
+		if (!licenseKey || typeof licenseKey !== 'string') {
+			return false;
+		}
+
+		const localPrefixes = ['ENT-', 'TRIAL-', 'COMM-'];
+		return localPrefixes.some((prefix) => licenseKey.startsWith(prefix));
+	}
+
+	/**
+	 * Activate a locally generated license key
+	 */
+	private async activateLocalLicense(activationKey: string): Promise<void> {
+		try {
+			this.logger.info('Activating local license key', { key: activationKey });
+
+			// Validate local license key format
+			const validation = this.validateLocalLicenseKey(activationKey);
+			if (!validation.valid) {
+				throw new Error(`Invalid local license key format: ${validation.error}`);
+			}
+
+			// Get local license API service
+			const { LocalLicenseApiService } = await import('./license/local-license-api.service');
+			const localLicenseApi = Container.get(LocalLicenseApiService);
+
+			// Get license information
+			const licenseInfo = await localLicenseApi.getLicenseInfo(activationKey);
+
+			// Store local license data
+			this.localLicenseData = {
+				licenseKey: activationKey,
+				type: licenseInfo.type,
+				planName: licenseInfo.planName,
+				features: licenseInfo.features,
+				isActive: true,
+				expiresAt: licenseInfo.expiresAt,
+				activatedAt: new Date(),
+			};
+
+			// Save to database for persistence
+			await this.saveLocalLicenseData(this.localLicenseData);
+
+			this.logger.info('Local license activated successfully', {
+				key: activationKey,
+				type: licenseInfo.type,
+				planName: licenseInfo.planName,
+			});
+		} catch (error) {
+			this.logger.error('Failed to activate local license', {
+				error: error instanceof Error ? error.message : error,
+				key: activationKey,
+			});
+			throw error;
+		}
+	}
+
+	/**
+	 * Validate local license key format
+	 */
+	private validateLocalLicenseKey(licenseKey: string): {
+		valid: boolean;
+		type?: string;
+		error?: string;
+	} {
+		if (!licenseKey || typeof licenseKey !== 'string') {
+			return { valid: false, error: 'License key is required and must be a string' };
+		}
+
+		const parts = licenseKey.split('-');
+		if (parts.length < 3) {
+			return { valid: false, error: 'License key must have at least 3 parts separated by dashes' };
+		}
+
+		const prefix = parts[0];
+		switch (prefix) {
+			case 'ENT':
+				return { valid: parts.length >= 4, type: 'enterprise' };
+			case 'TRIAL':
+				return { valid: parts.length === 3, type: 'trial' };
+			case 'COMM':
+				return { valid: parts.length === 3, type: 'community' };
+			default:
+				return { valid: false, error: `Unknown license key prefix: ${prefix}` };
+		}
+	}
+
+	/**
+	 * Save local license data to database
+	 */
+	private async saveLocalLicenseData(licenseData: any): Promise<void> {
+		try {
+			await this.settingsRepository.upsert(
+				{
+					key: 'local_license_data',
+					value: JSON.stringify(licenseData),
+					loadOnStartup: true,
+				},
+				['key'],
+			);
+		} catch (error) {
+			this.logger.warn('Failed to save local license data to database', { error });
+		}
+	}
+
+	/**
+	 * Load local license data from database
+	 */
+	private async loadLocalLicenseData(): Promise<void> {
+		try {
+			const setting = await this.settingsRepository.findOne({
+				where: { key: 'local_license_data' },
+			});
+
+			if (setting?.value) {
+				this.localLicenseData = JSON.parse(setting.value);
+				this.logger.debug('Loaded local license data from database');
+			}
+		} catch (error) {
+			this.logger.warn('Failed to load local license data from database', { error });
+		}
+	}
+
+	/**
+	 * Override feature checks to include local license features
+	 */
+	isLicensed(feature: BooleanLicenseFeature): boolean {
+		// Check local license first
+		if (this.localLicenseData?.features?.[feature]) {
+			return true;
+		}
+
+		// Fall back to SDK license
+		return this.manager?.hasFeatureEnabled(feature) ?? false;
+	}
+
+	/**
+	 * Override plan name to include local license
+	 */
+	getPlanName(): string {
+		if (this.localLicenseData?.planName) {
+			return this.localLicenseData.planName;
+		}
+
+		return this.getValue('planName') ?? 'Community';
+	}
+
+	/**
+	 * Override getCurrentEntitlements to include local license
+	 */
+	getCurrentEntitlements(): TEntitlement[] {
+		const sdkEntitlements = this.manager?.getCurrentEntitlements() ?? [];
+
+		// Add local license as entitlement if available
+		if (this.localLicenseData?.isActive) {
+			const localEntitlement = {
+				id: this.localLicenseData.licenseKey || 'local-license',
+				productId: this.localLicenseData.type,
+				productMetadata: {
+					terms: { isMainPlan: true },
+				},
+				validFrom: new Date(this.localLicenseData.activatedAt),
+				validTo: this.localLicenseData.expiresAt
+					? new Date(this.localLicenseData.expiresAt)
+					: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+				validUntil: this.localLicenseData.expiresAt
+					? new Date(this.localLicenseData.expiresAt)
+					: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+				features: this.localLicenseData.features,
+				featureOverrides: {},
+				isFloatable: false,
+			} as TEntitlement;
+
+			return [localEntitlement, ...sdkEntitlements];
+		}
+
+		return sdkEntitlements;
 	}
 }
