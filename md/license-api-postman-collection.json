@@ -1,0 +1,495 @@
+{
+	"info": {
+		"_postman_id": "license-api-collection",
+		"name": "n8n License API Collection",
+		"description": "Complete API collection for n8n License Controller endpoints",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "license-controller"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{authToken}}",
+				"type": "string"
+			}
+		]
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Login (Get Auth Token)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Extract auth token from cookies and set as collection variable",
+									"if (pm.response.code === 200) {",
+									"    const cookies = pm.cookies.all();",
+									"    const authCookie = cookies.find(cookie => cookie.name === 'n8n-auth');",
+									"    if (authCookie) {",
+									"        pm.collectionVariables.set('authToken', authCookie.value);",
+									"        console.log('Auth token set from cookie:', authCookie.value);",
+									"    }",
+									"    ",
+									"    // Also try to extract from response headers",
+									"    const setCookieHeader = pm.response.headers.get('Set-Cookie');",
+									"    if (setCookieHeader) {",
+									"        const authMatch = setCookieHeader.match(/n8n-auth=([^;]+)/);",
+									"        if (authMatch) {",
+									"            pm.collectionVariables.set('authToken', authMatch[1]);",
+									"            console.log('Auth token set from header:', authMatch[1]);",
+									"        }",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"emailOrLdapLoginId\": \"{{userEmail}}\",\n  \"password\": \"{{userPassword}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/rest/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["rest", "login"]
+						},
+						"description": "Login to get authentication token. The token will be automatically extracted and set as the authToken variable."
+					},
+					"response": []
+				},
+				{
+					"name": "Create API Key",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"label\": \"License API Key\",\n  \"scopes\": [\"license:manage\", \"license:read\"]\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/rest/api-keys",
+							"host": ["{{baseUrl}}"],
+							"path": ["rest", "api-keys"]
+						},
+						"description": "Create an API key for accessing license endpoints. Requires authentication."
+					},
+					"response": []
+				},
+				{
+					"name": "Get API Keys",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/rest/api-keys",
+							"host": ["{{baseUrl}}"],
+							"path": ["rest", "api-keys"]
+						},
+						"description": "Get all API keys for the authenticated user"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Current User",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/rest/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["rest", "login"]
+						},
+						"description": "Check current authentication status and get user information"
+					},
+					"response": []
+				},
+				{
+					"name": "Logout",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/rest/logout",
+							"host": ["{{baseUrl}}"],
+							"path": ["rest", "logout"]
+						},
+						"description": "Logout and invalidate the current authentication token"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "License Management",
+			"item": [
+				{
+					"name": "Get License Data",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/rest/license/",
+							"host": ["{{baseUrl}}"],
+							"path": ["rest", "license", ""]
+						},
+						"description": "Retrieve current license data and status"
+					},
+					"response": []
+				},
+				{
+					"name": "Activate License",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"activationKey\": \"{{activationKey}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/rest/license/activate",
+							"host": ["{{baseUrl}}"],
+							"path": ["rest", "license", "activate"]
+						},
+						"description": "Activate a license using an activation key. Requires license:manage scope.\n\nCommon errors:\n- 'reservationId must match format \"uuid\"': This error comes from the license SDK when the activation key format is invalid or the license server is unreachable.\n- 'SCHEMA_VALIDATION': Activation key is in the wrong format\n- 'RESERVATION_EXHAUSTED': Activation key has been used too many times\n- 'RESERVATION_EXPIRED': Activation key has expired\n- 'NOT_FOUND': Activation key not found\n- 'RESERVATION_DUPLICATE': Activation key has already been used on this instance\n\nExample activation keys:\n- Enterprise: 'ENT-XXXXXXXX-XXXXXXXX-XXXXXXXX'\n- Trial: 'TRIAL-XXXXXXXX-XXXXXXXX-XXXXXXXX'\n- Community Plus: 'COMM-XXXXXXXX-XXXXXXXX-XXXXXXXX'"
+					},
+					"response": []
+				},
+				{
+					"name": "Renew License",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/rest/license/renew",
+							"host": ["{{baseUrl}}"],
+							"path": ["rest", "license", "renew"]
+						},
+						"description": "Renew the current license. Requires license:manage scope."
+					},
+					"response": []
+				},
+				{
+					"name": "Validate License Key",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"licenseKey\": \"TRIAL-ABC123-DEF456\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/rest/license/validate",
+							"host": ["{{baseUrl}}"],
+							"path": ["rest", "license", "validate"]
+						},
+						"description": "Validate a license key format and type"
+					},
+					"response": []
+				},
+				{
+					"name": "Get License Info",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/rest/license/info/{{licenseKey}}",
+							"host": ["{{baseUrl}}"],
+							"path": ["rest", "license", "info", "{{licenseKey}}"]
+						},
+						"description": "Get detailed information about a specific license key"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Enterprise Features",
+			"item": [
+				{
+					"name": "Request Enterprise Trial (Cloud)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/rest/license/enterprise/request_trial",
+							"host": ["{{baseUrl}}"],
+							"path": ["rest", "license", "enterprise", "request_trial"]
+						},
+						"description": "Request an enterprise trial through cloud service. Requires license:manage scope."
+					},
+					"response": []
+				},
+				{
+					"name": "Request Enterprise Trial (Local)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/rest/license/enterprise-trial",
+							"host": ["{{baseUrl}}"],
+							"path": ["rest", "license", "enterprise-trial"]
+						},
+						"description": "Request an enterprise trial through local license service. Requires license:manage scope."
+					},
+					"response": []
+				},
+				{
+					"name": "Generate Enterprise Owner License",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/rest/license/generate-enterprise-owner",
+							"host": ["{{baseUrl}}"],
+							"path": ["rest", "license", "generate-enterprise-owner"]
+						},
+						"description": "Generate an enterprise license for global:owner role. Only accessible by global:owner users. Requires license:manage scope."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Community Edition",
+			"item": [
+				{
+					"name": "Register Community Edition (Cloud)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"user@example.com\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/rest/license/enterprise/community-registered",
+							"host": ["{{baseUrl}}"],
+							"path": ["rest", "license", "enterprise", "community-registered"]
+						},
+						"description": "Register community edition through cloud service"
+					},
+					"response": []
+				},
+				{
+					"name": "Register Community Edition (Local)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{authToken}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"user@example.com\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/rest/license/community-registered",
+							"host": ["{{baseUrl}}"],
+							"path": ["rest", "license", "community-registered"]
+						},
+						"description": "Register community edition through local license service"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Plans & Pricing",
+			"item": [
+				{
+					"name": "Get Available Plans",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/rest/license/plans",
+							"host": ["{{baseUrl}}"],
+							"path": ["rest", "license", "plans"]
+						},
+						"description": "Get all available subscription plans with their features and API endpoints"
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [""]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [""]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:5678",
+			"description": "Base URL for n8n instance"
+		},
+		{
+			"key": "authToken",
+			"value": "",
+			"description": "Authentication token for protected endpoints"
+		},
+		{
+			"key": "userEmail",
+			"value": "admin@example.com",
+			"description": "Email address for login authentication"
+		},
+		{
+			"key": "userPassword",
+			"value": "password123",
+			"description": "Password for login authentication"
+		},
+		{
+			"key": "activationKey",
+			"value": "ENT-XXXXXXXX-XXXXXXXX-XXXXXXXX",
+			"description": "License activation key (replace with actual key from n8n license provider)"
+		},
+		{
+			"key": "licenseKey",
+			"value": "TRIAL-ABC123-DEF456",
+			"description": "Sample license key for testing"
+		}
+	]
+}

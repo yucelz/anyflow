@@ -1,6 +1,6 @@
 const { defineConfig } = require('cypress');
 
-const BASE_URL = 'http://localhost:5678';
+const BASE_URL = process.env.BASE_URL || 'http://localhost:5678';
 
 module.exports = defineConfig({
 	projectId: '5hbsdn',
