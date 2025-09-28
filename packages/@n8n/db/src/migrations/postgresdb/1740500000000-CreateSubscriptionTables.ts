@@ -9,18 +9,18 @@ export class CreateSubscriptionTables1740500000000 implements ReversibleMigratio
 				slug varchar(50) UNIQUE NOT NULL,
 				name varchar(100) NOT NULL,
 				description text,
-				monthly_price decimal(10,2) NOT NULL,
-				yearly_price decimal(10,2) NOT NULL,
-				monthly_executions_limit integer NOT NULL,
-				active_workflows_limit integer NOT NULL,
-				credentials_limit integer NOT NULL,
-				users_limit integer NOT NULL,
-				storage_limit integer DEFAULT 0,
+				"monthlyPrice" decimal(10,2) NOT NULL,
+				"yearlyPrice" decimal(10,2) NOT NULL,
+				"monthlyExecutionsLimit" integer NOT NULL,
+				"activeWorkflowsLimit" integer NOT NULL,
+				"credentialsLimit" integer NOT NULL,
+				"usersLimit" integer NOT NULL,
+				"storageLimit" integer DEFAULT 0,
 				features jsonb,
-				is_active boolean DEFAULT true,
-				is_popular boolean DEFAULT false,
-				sort_order integer DEFAULT 0,
-				trial_days integer DEFAULT 14,
+				"isActive" boolean DEFAULT true,
+				"isPopular" boolean DEFAULT false,
+				"sortOrder" integer DEFAULT 0,
+				"trialDays" integer DEFAULT 14,
 				"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 				"updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
 			);
@@ -30,24 +30,24 @@ export class CreateSubscriptionTables1740500000000 implements ReversibleMigratio
 		await queryRunner.query(`
 			CREATE TABLE ${tablePrefix}user_subscription (
 				id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-				user_id uuid NOT NULL,
-				plan_id uuid NOT NULL,
+				"userId" uuid NOT NULL,
+				"planId" uuid NOT NULL,
 				status varchar(20) NOT NULL,
-				billing_cycle varchar(10) NOT NULL,
+				"billingCycle" varchar(10) NOT NULL,
 				amount decimal(10,2) NOT NULL,
 				currency varchar(3) NOT NULL,
-				current_period_start timestamp NOT NULL,
-				current_period_end timestamp NOT NULL,
-				trial_start timestamp,
-				trial_end timestamp,
-				canceled_at timestamp,
-				cancel_at_period_end boolean DEFAULT false,
-				stripe_subscription_id varchar(255),
-				paypal_subscription_id varchar(255),
-				square_subscription_id varchar(255),
-				stripe_customer_id varchar(255),
-				paypal_customer_id varchar(255),
-				square_customer_id varchar(255),
+				"currentPeriodStart" timestamp NOT NULL,
+				"currentPeriodEnd" timestamp NOT NULL,
+				"trialStart" timestamp,
+				"trialEnd" timestamp,
+				"canceledAt" timestamp,
+				"cancelAtPeriodEnd" boolean DEFAULT false,
+				"stripeSubscriptionId" varchar(255),
+				"paypalSubscriptionId" varchar(255),
+				"squareSubscriptionId" varchar(255),
+				"stripeCustomerId" varchar(255),
+				"paypalCustomerId" varchar(255),
+				"squareCustomerId" varchar(255),
 				metadata jsonb,
 				"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 				"updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
@@ -58,17 +58,17 @@ export class CreateSubscriptionTables1740500000000 implements ReversibleMigratio
 		await queryRunner.query(`
 			CREATE TABLE ${tablePrefix}payment_method (
 				id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-				user_id uuid NOT NULL,
+				"userId" uuid NOT NULL,
 				provider varchar(20) NOT NULL,
 				type varchar(20) NOT NULL,
 				last4 varchar(4),
 				brand varchar(20),
-				expiry_month integer,
-				expiry_year integer,
-				is_default boolean DEFAULT false,
-				provider_payment_method_id varchar(255) NOT NULL,
-				billing_address jsonb,
-				is_active boolean DEFAULT true,
+				"expiryMonth" integer,
+				"expiryYear" integer,
+				"isDefault" boolean DEFAULT false,
+				"providerPaymentMethodId" varchar(255) NOT NULL,
+				"billingAddress" jsonb,
+				"isActive" boolean DEFAULT true,
 				"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 				"updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
 			);
@@ -78,20 +78,20 @@ export class CreateSubscriptionTables1740500000000 implements ReversibleMigratio
 		await queryRunner.query(`
 			CREATE TABLE ${tablePrefix}invoice (
 				id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-				invoice_number varchar(50) UNIQUE NOT NULL,
-				user_id uuid NOT NULL,
-				subscription_id uuid,
+				"invoiceNumber" varchar(50) UNIQUE NOT NULL,
+				"userId" uuid NOT NULL,
+				"subscriptionId" uuid,
 				status varchar(20) NOT NULL,
 				subtotal decimal(10,2) NOT NULL,
 				tax decimal(10,2) DEFAULT 0,
 				total decimal(10,2) NOT NULL,
 				currency varchar(3) NOT NULL,
-				due_date timestamp NOT NULL,
-				paid_at timestamp,
-				line_items jsonb NOT NULL,
-				stripe_invoice_id varchar(255),
-				paypal_invoice_id varchar(255),
-				square_invoice_id varchar(255),
+				"dueDate" timestamp NOT NULL,
+				"paidAt" timestamp,
+				"lineItems" jsonb NOT NULL,
+				"stripeInvoiceId" varchar(255),
+				"paypalInvoiceId" varchar(255),
+				"squareInvoiceId" varchar(255),
 				metadata jsonb,
 				"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 				"updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
@@ -102,16 +102,16 @@ export class CreateSubscriptionTables1740500000000 implements ReversibleMigratio
 		await queryRunner.query(`
 			CREATE TABLE ${tablePrefix}usage_tracking (
 				id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-				user_id uuid NOT NULL,
+				"userId" uuid NOT NULL,
 				date date NOT NULL,
-				executions_count integer DEFAULT 0,
-				active_workflows_count integer DEFAULT 0,
-				credentials_count integer DEFAULT 0,
-				users_count integer DEFAULT 0,
-				storage_used bigint DEFAULT 0,
+				"executionsCount" integer DEFAULT 0,
+				"activeWorkflowsCount" integer DEFAULT 0,
+				"credentialsCount" integer DEFAULT 0,
+				"usersCount" integer DEFAULT 0,
+				"storageUsed" bigint DEFAULT 0,
 				"createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 				"updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-				UNIQUE(user_id, date)
+				UNIQUE("userId", date)
 			);
 		`);
 
@@ -120,24 +120,24 @@ export class CreateSubscriptionTables1740500000000 implements ReversibleMigratio
 			`CREATE INDEX idx_subscription_plan_slug ON ${tablePrefix}subscription_plan(slug);`,
 		);
 		await queryRunner.query(
-			`CREATE INDEX idx_user_subscription_user_id ON ${tablePrefix}user_subscription(user_id);`,
+			`CREATE INDEX idx_user_subscription_user_id ON ${tablePrefix}user_subscription("userId");`,
 		);
 		await queryRunner.query(
 			`CREATE INDEX idx_user_subscription_status ON ${tablePrefix}user_subscription(status);`,
 		);
 		await queryRunner.query(
-			`CREATE INDEX idx_payment_method_user_id ON ${tablePrefix}payment_method(user_id);`,
+			`CREATE INDEX idx_payment_method_user_id ON ${tablePrefix}payment_method("userId");`,
 		);
 		await queryRunner.query(
-			`CREATE INDEX idx_payment_method_is_default ON ${tablePrefix}payment_method(is_default);`,
+			`CREATE INDEX idx_payment_method_is_default ON ${tablePrefix}payment_method("isDefault");`,
 		);
 		await queryRunner.query(
-			`CREATE INDEX idx_invoice_number ON ${tablePrefix}invoice(invoice_number);`,
+			`CREATE INDEX idx_invoice_number ON ${tablePrefix}invoice("invoiceNumber");`,
 		);
-		await queryRunner.query(`CREATE INDEX idx_invoice_user_id ON ${tablePrefix}invoice(user_id);`);
+		await queryRunner.query(`CREATE INDEX idx_invoice_user_id ON ${tablePrefix}invoice("userId");`);
 		await queryRunner.query(`CREATE INDEX idx_invoice_status ON ${tablePrefix}invoice(status);`);
 		await queryRunner.query(
-			`CREATE INDEX idx_usage_tracking_user_id ON ${tablePrefix}usage_tracking(user_id);`,
+			`CREATE INDEX idx_usage_tracking_user_id ON ${tablePrefix}usage_tracking("userId");`,
 		);
 		await queryRunner.query(
 			`CREATE INDEX idx_usage_tracking_date ON ${tablePrefix}usage_tracking(date);`,
@@ -147,37 +147,37 @@ export class CreateSubscriptionTables1740500000000 implements ReversibleMigratio
 		await queryRunner.query(`
 			ALTER TABLE ${tablePrefix}user_subscription
 			ADD CONSTRAINT fk_user_subscription_user
-			FOREIGN KEY (user_id) REFERENCES "${tablePrefix}user"(id) ON DELETE CASCADE;
+			FOREIGN KEY ("userId") REFERENCES "${tablePrefix}user"(id) ON DELETE CASCADE;
 		`);
 
 		await queryRunner.query(`
 			ALTER TABLE ${tablePrefix}user_subscription
 			ADD CONSTRAINT fk_user_subscription_plan
-			FOREIGN KEY (plan_id) REFERENCES ${tablePrefix}subscription_plan(id) ON DELETE RESTRICT;
+			FOREIGN KEY ("planId") REFERENCES ${tablePrefix}subscription_plan(id) ON DELETE RESTRICT;
 		`);
 
 		await queryRunner.query(`
 			ALTER TABLE ${tablePrefix}payment_method
 			ADD CONSTRAINT fk_payment_method_user
-			FOREIGN KEY (user_id) REFERENCES "${tablePrefix}user"(id) ON DELETE CASCADE;
+			FOREIGN KEY ("userId") REFERENCES "${tablePrefix}user"(id) ON DELETE CASCADE;
 		`);
 
 		await queryRunner.query(`
 			ALTER TABLE ${tablePrefix}invoice
 			ADD CONSTRAINT fk_invoice_user
-			FOREIGN KEY (user_id) REFERENCES "${tablePrefix}user"(id) ON DELETE CASCADE;
+			FOREIGN KEY ("userId") REFERENCES "${tablePrefix}user"(id) ON DELETE CASCADE;
 		`);
 
 		await queryRunner.query(`
 			ALTER TABLE ${tablePrefix}invoice
 			ADD CONSTRAINT fk_invoice_subscription
-			FOREIGN KEY (subscription_id) REFERENCES ${tablePrefix}user_subscription(id) ON DELETE SET NULL;
+			FOREIGN KEY ("subscriptionId") REFERENCES ${tablePrefix}user_subscription(id) ON DELETE SET NULL;
 		`);
 
 		await queryRunner.query(`
 			ALTER TABLE ${tablePrefix}usage_tracking
 			ADD CONSTRAINT fk_usage_tracking_user
-			FOREIGN KEY (user_id) REFERENCES "${tablePrefix}user"(id) ON DELETE CASCADE;
+			FOREIGN KEY ("userId") REFERENCES "${tablePrefix}user"(id) ON DELETE CASCADE;
 		`);
 	}
 

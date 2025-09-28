@@ -5,9 +5,9 @@ export class SeedSubscriptionPlans1740500001000 implements ReversibleMigration {
 		// Insert default subscription plans
 		await queryRunner.query(`
 			INSERT INTO ${tablePrefix}subscription_plan (
-				slug, name, description, monthly_price, yearly_price,
-				monthly_executions_limit, active_workflows_limit, credentials_limit, users_limit,
-				storage_limit, features, is_active, is_popular, sort_order, trial_days
+				slug, name, description, "monthlyPrice", "yearlyPrice",
+				"monthlyExecutionsLimit", "activeWorkflowsLimit", "credentialsLimit", "usersLimit",
+				"storageLimit", features, "isActive", "isPopular", "sortOrder", "trialDays"
 			) VALUES
 			(
 				'free',

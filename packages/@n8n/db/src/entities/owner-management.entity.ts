@@ -34,13 +34,13 @@ export class OwnerManagementEntity extends WithTimestamps {
 	@PrimaryColumn('uuid')
 	id: string;
 
-	@Column({ type: 'uuid', unique: true, name: 'owner_id' })
+	@Column({ type: 'uuid', unique: true, name: 'ownerId' })
 	ownerId: string; // User ID with global:owner role
 
 	@Column({ type: 'json' })
 	permissions: OwnerPermissions;
 
-	@Column({ type: 'json', nullable: true, name: 'delegated_users' })
+	@Column({ type: 'json', nullable: true, name: 'delegatedUsers' })
 	delegatedUsers: string[]; // User IDs with delegated permissions
 
 	@Column({ type: 'json' })
@@ -55,6 +55,6 @@ export class OwnerManagementEntity extends WithTimestamps {
 
 	// Relations
 	@ManyToOne(() => User, { nullable: false })
-	@JoinColumn({ name: 'owner_id' })
+	@JoinColumn({ name: 'ownerId' })
 	owner: User;
 }
