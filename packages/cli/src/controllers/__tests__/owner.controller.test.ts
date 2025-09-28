@@ -6,6 +6,9 @@ import {
 	type PublicUser,
 	type SettingsRepository,
 	type UserRepository,
+	type SubscriptionPlanRepository,
+	type UserSubscriptionRepository,
+	type OwnerManagementRepository,
 	GLOBAL_OWNER_ROLE,
 } from '@n8n/db';
 import type { Response } from 'express';
@@ -32,7 +35,6 @@ describe('OwnerController', () => {
 	const userRepository = mock<UserRepository>();
 	const settingsRepository = mock<SettingsRepository>();
 	const passwordUtility = mock<PasswordUtility>();
-
 	const controller = new OwnerController(
 		logger,
 		eventService,

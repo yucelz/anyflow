@@ -1,5 +1,16 @@
-import { Column, Entity, Index, JoinColumn, ManyToOne } from '@n8n/typeorm';
-import { WithTimestampsAndStringId } from './abstract-entity';
+import {
+	Column,
+	Entity,
+	Index,
+	JoinColumn,
+	ManyToOne,
+	CreateDateColumn,
+	UpdateDateColumn,
+	PrimaryColumn,
+	BeforeInsert,
+} from '@n8n/typeorm';
+import { v4 as uuid } from 'uuid';
+import { datetimeColumnType } from './abstract-entity';
 import { User } from './user';
 
 export interface OwnerPermissions {
@@ -21,21 +32,45 @@ export interface OwnerSettings {
 
 @Entity('owner_management')
 @Index(['ownerId'], { unique: true })
-export class OwnerManagementEntity extends WithTimestampsAndStringId {
-	@Column({ type: 'uuid', unique: true })
+export class OwnerManagementEntity {
+	@PrimaryColumn('uuid')
+	id: string;
+
+	@Column({ type: 'uuid', unique: true, name: 'owner_id' })
 	ownerId: string; // User ID with global:owner role
 
 	@Column({ type: 'json' })
 	permissions: OwnerPermissions;
 
-	@Column({ type: 'json', nullable: true })
+	@Column({ type: 'json', nullable: true, name: 'delegated_users' })
 	delegatedUsers: string[]; // User IDs with delegated permissions
 
 	@Column({ type: 'json' })
 	settings: OwnerSettings;
 
+	@CreateDateColumn({
+		precision: 3,
+		type: datetimeColumnType,
+		name: 'created_at',
+	})
+	createdAt: Date;
+
+	@UpdateDateColumn({
+		precision: 3,
+		type: datetimeColumnType,
+		name: 'updated_at',
+	})
+	updatedAt: Date;
+
+	@BeforeInsert()
+	generateId() {
+		if (!this.id) {
+			this.id = uuid();
+		}
+	}
+
 	// Relations
 	@ManyToOne(() => User, { nullable: false })
-	@JoinColumn({ name: 'ownerId' })
+	@JoinColumn({ name: 'owner_id' })
 	owner: User;
 }

@@ -10,6 +10,7 @@ import { UrlService } from '@/services/url.service';
 
 import { LicenseService } from './license.service';
 import { LocalLicenseApiService } from './local-license-api.service';
+import { OwnerAccessControlService } from './owner-access-control.service';
 
 @RestController('/license')
 export class LicenseController {
@@ -18,6 +19,7 @@ export class LicenseController {
 		private readonly instanceSettings: InstanceSettings,
 		private readonly urlService: UrlService,
 		private readonly localLicenseApiService: LocalLicenseApiService,
+		private readonly ownerAccessControlService: OwnerAccessControlService,
 	) {}
 
 	@Get('/')
@@ -28,6 +30,9 @@ export class LicenseController {
 	@Post('/enterprise/request_trial')
 	@GlobalScope('license:manage')
 	async requestEnterpriseTrial(req: AuthenticatedRequest) {
+		// Use OwnerAccessControlService for consistent access control
+		await this.ownerAccessControlService.validateOwnerPermission(req.user.id, 'canCreateLicenses');
+
 		try {
 			await this.licenseService.requestEnterpriseTrial(req.user);
 		} catch (error: unknown) {
@@ -60,6 +65,9 @@ export class LicenseController {
 	@Post('/activate')
 	@GlobalScope('license:manage')
 	async activateLicense(req: LicenseRequest.Activate) {
+		// Use OwnerAccessControlService for consistent access control
+		await this.ownerAccessControlService.validateOwnerPermission(req.user.id, 'canCreateLicenses');
+
 		const { activationKey } = req.body;
 		await this.licenseService.activateLicense(activationKey);
 		return await this.getTokenAndData();
@@ -67,7 +75,10 @@ export class LicenseController {
 
 	@Post('/renew')
 	@GlobalScope('license:manage')
-	async renewLicense() {
+	async renewLicense(req: AuthenticatedRequest) {
+		// Use OwnerAccessControlService for consistent access control
+		await this.ownerAccessControlService.validateOwnerPermission(req.user.id, 'canCreateLicenses');
+
 		await this.licenseService.renewLicense();
 		return await this.getTokenAndData();
 	}
@@ -80,6 +91,9 @@ export class LicenseController {
 	@Post('/enterprise-trial')
 	@GlobalScope('license:manage')
 	async requestEnterpriseTrialLocal(req: AuthenticatedRequest) {
+		// Use OwnerAccessControlService for consistent access control
+		await this.ownerAccessControlService.validateOwnerPermission(req.user.id, 'canCreateLicenses');
+
 		try {
 			await this.localLicenseApiService.requestEnterpriseTrial({
 				licenseType: 'enterprise',
@@ -115,26 +129,34 @@ export class LicenseController {
 	@Post('/generate-enterprise-owner')
 	@GlobalScope('license:manage')
 	async generateEnterpriseOwnerLicense(req: AuthenticatedRequest) {
-		// Check if user is the global owner
-		// Handle both object format (role.slug) and string format (role)
-		const userRole = typeof req.user.role === 'string' ? req.user.role : req.user.role?.slug;
-		if (userRole !== 'global:owner') {
-			throw new BadRequestError('Only the global owner can generate enterprise licenses');
-		}
+		// Use OwnerAccessControlService for consistent access control
+		await this.ownerAccessControlService.validateOwnerPermission(req.user.id, 'canCreateLicenses');
 
 		try {
-			const licenseKey = await this.localLicenseApiService.generateEnterpriseOwnerLicense();
+			const licenseKey = await this.localLicenseApiService.generateEnterpriseOwnerLicenseEnhanced(
+				req.user,
+			);
+
 			return {
 				success: true,
 				message: 'Enterprise license generated successfully for global:owner',
 				licenseKey,
 				owner: 'global:owner',
+				user: {
+					id: req.user.id,
+					email: req.user.email,
+					role: req.user.role,
+				},
 			};
 		} catch (error: unknown) {
 			if (error instanceof Error) {
-				throw new BadRequestError(error.message);
+				throw new BadRequestError(
+					`Failed to generate enterprise license for global:owner: ${error.message}`,
+				);
 			} else {
-				throw new BadRequestError('Failed to generate enterprise license');
+				throw new BadRequestError(
+					'Failed to generate enterprise license for global:owner - Unknown error',
+				);
 			}
 		}
 	}
@@ -148,6 +170,28 @@ export class LicenseController {
 	async validateLicenseKey(@Body body: { licenseKey: string }) {
 		const validation = this.localLicenseApiService.validateLicenseKey(body.licenseKey);
 		return validation;
+	}
+
+	@Get('/debug/plans')
+	async getDebugPlans() {
+		try {
+			const plans = await this.localLicenseApiService.getAvailablePlansWithEndpoints();
+			return {
+				success: true,
+				plansCount: plans.length,
+				plans: plans.map((plan) => ({
+					id: plan.id,
+					slug: plan.slug,
+					name: plan.name,
+					isActive: plan.isActive,
+				})),
+			};
+		} catch (error) {
+			return {
+				success: false,
+				error: error instanceof Error ? error.message : 'Unknown error',
+			};
+		}
 	}
 
 	private async getTokenAndData() {

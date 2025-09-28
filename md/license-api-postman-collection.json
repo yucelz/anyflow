@@ -2,7 +2,7 @@
 	"info": {
 		"_postman_id": "license-controller-api",
 		"name": "n8n License Controller API",
-		"description": "Complete API collection for n8n License Controller with Bearer Token authentication support",
+		"description": "Complete API collection for n8n License Controller with Bearer Token authentication support. Updated for consolidated license controller with OwnerAccessControlService integration.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "license-api-collection"
 	},
@@ -235,6 +235,43 @@
 					"response": []
 				},
 				{
+					"name": "Get Debug Plans",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Debug plans data is returned', function () {",
+									"    const responseJson = pm.response.json();",
+									"    pm.expect(responseJson).to.have.property('success');",
+									"    if (responseJson.success) {",
+									"        pm.expect(responseJson).to.have.property('plansCount');",
+									"        pm.expect(responseJson).to.have.property('plans');",
+									"        pm.expect(responseJson.plans).to.be.an('array');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/rest/license/debug/plans",
+							"host": ["{{base_url}}"],
+							"path": ["rest", "license", "debug", "plans"]
+						},
+						"description": "Get debug information about available plans with simplified data structure"
+					},
+					"response": []
+				},
+				{
 					"name": "Validate License Key",
 					"event": [
 						{
@@ -311,7 +348,7 @@
 			"description": "Basic license information and validation endpoints"
 		},
 		{
-			"name": "License Operations (Requires license:manage scope)",
+			"name": "License Operations (Requires license:manage scope + OwnerAccessControl)",
 			"item": [
 				{
 					"name": "Activate License",
@@ -320,14 +357,22 @@
 							"listen": "test",
 							"script": {
 								"exec": [
-									"pm.test('Status code is 200', function () {",
-									"    pm.response.to.have.status(200);",
+									"pm.test('Status code is 200 or 400', function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 400]);",
 									"});",
 									"",
-									"pm.test('License data and management token returned', function () {",
-									"    const responseJson = pm.response.json();",
-									"    pm.expect(responseJson).to.have.property('managementToken');",
-									"});"
+									"if (pm.response.code === 200) {",
+									"    pm.test('License data and management token returned', function () {",
+									"        const responseJson = pm.response.json();",
+									"        pm.expect(responseJson).to.have.property('managementToken');",
+									"    });",
+									"} else {",
+									"    pm.test('Access control validation failed', function () {",
+									"        const responseJson = pm.response.json();",
+									"        pm.expect(responseJson).to.have.property('message');",
+									"        console.log('Access denied - requires canCreateLicenses permission');",
+									"    });",
+									"}"
 								],
 								"type": "text/javascript"
 							}
@@ -350,7 +395,7 @@
 							"host": ["{{base_url}}"],
 							"path": ["rest", "license", "activate"]
 						},
-						"description": "Activate a license using the provided activation key. Requires license:manage scope."
+						"description": "Activate a license using the provided activation key. Requires license:manage scope and canCreateLicenses permission via OwnerAccessControlService."
 					},
 					"response": []
 				},
@@ -361,14 +406,22 @@
 							"listen": "test",
 							"script": {
 								"exec": [
-									"pm.test('Status code is 200', function () {",
-									"    pm.response.to.have.status(200);",
+									"pm.test('Status code is 200 or 400', function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 400]);",
 									"});",
 									"",
-									"pm.test('Updated license data returned', function () {",
-									"    const responseJson = pm.response.json();",
-									"    pm.expect(responseJson).to.have.property('managementToken');",
-									"});"
+									"if (pm.response.code === 200) {",
+									"    pm.test('Updated license data returned', function () {",
+									"        const responseJson = pm.response.json();",
+									"        pm.expect(responseJson).to.have.property('managementToken');",
+									"    });",
+									"} else {",
+									"    pm.test('Access control validation failed', function () {",
+									"        const responseJson = pm.response.json();",
+									"        pm.expect(responseJson).to.have.property('message');",
+									"        console.log('Access denied - requires canCreateLicenses permission');",
+									"    });",
+									"}"
 								],
 								"type": "text/javascript"
 							}
@@ -382,7 +435,7 @@
 							"host": ["{{base_url}}"],
 							"path": ["rest", "license", "renew"]
 						},
-						"description": "Renew the current active license. Requires license:manage scope."
+						"description": "Renew the current active license. Requires license:manage scope and canCreateLicenses permission via OwnerAccessControlService."
 					},
 					"response": []
 				},
@@ -406,6 +459,7 @@
 									"    pm.test('Error response has message', function () {",
 									"        const responseJson = pm.response.json();",
 									"        pm.expect(responseJson).to.have.property('message');",
+									"        console.log('Access denied or trial request failed');",
 									"    });",
 									"}"
 								],
@@ -421,7 +475,7 @@
 							"host": ["{{base_url}}"],
 							"path": ["rest", "license", "enterprise", "request_trial"]
 						},
-						"description": "Request an enterprise trial license. Requires license:manage scope."
+						"description": "Request an enterprise trial license. Requires license:manage scope and canCreateLicenses permission via OwnerAccessControlService."
 					},
 					"response": []
 				},
@@ -432,15 +486,23 @@
 							"listen": "test",
 							"script": {
 								"exec": [
-									"pm.test('Status code is 200', function () {",
-									"    pm.response.to.have.status(200);",
+									"pm.test('Status code is 200 or 400', function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 400]);",
 									"});",
 									"",
-									"pm.test('Success message returned', function () {",
-									"    const responseJson = pm.response.json();",
-									"    pm.expect(responseJson).to.have.property('success', true);",
-									"    pm.expect(responseJson).to.have.property('message');",
-									"});"
+									"if (pm.response.code === 200) {",
+									"    pm.test('Success message returned', function () {",
+									"        const responseJson = pm.response.json();",
+									"        pm.expect(responseJson).to.have.property('success', true);",
+									"        pm.expect(responseJson).to.have.property('message');",
+									"    });",
+									"} else {",
+									"    pm.test('Access control validation failed', function () {",
+									"        const responseJson = pm.response.json();",
+									"        pm.expect(responseJson).to.have.property('message');",
+									"        console.log('Access denied - requires canCreateLicenses permission');",
+									"    });",
+									"}"
 								],
 								"type": "text/javascript"
 							}
@@ -454,12 +516,58 @@
 							"host": ["{{base_url}}"],
 							"path": ["rest", "license", "enterprise-trial"]
 						},
-						"description": "Request enterprise trial through local license API. Requires license:manage scope."
+						"description": "Request enterprise trial through local license API. Requires license:manage scope and canCreateLicenses permission via OwnerAccessControlService."
+					},
+					"response": []
+				},
+				{
+					"name": "Generate Enterprise Owner License",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200 or 400', function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 400]);",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    pm.test('License generated successfully', function () {",
+									"        const responseJson = pm.response.json();",
+									"        pm.expect(responseJson).to.have.property('success', true);",
+									"        pm.expect(responseJson).to.have.property('licenseKey');",
+									"        pm.expect(responseJson).to.have.property('owner', 'global:owner');",
+									"        pm.expect(responseJson).to.have.property('user');",
+									"        ",
+									"        // Store the generated license key for other tests",
+									"        pm.collectionVariables.set('generated_license_key', responseJson.licenseKey);",
+									"    });",
+									"} else {",
+									"    pm.test('Access control validation failed', function () {",
+									"        const responseJson = pm.response.json();",
+									"        pm.expect(responseJson).to.have.property('message');",
+									"        console.log('Access denied - requires canCreateLicenses permission and global:owner role');",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/rest/license/generate-enterprise-owner",
+							"host": ["{{base_url}}"],
+							"path": ["rest", "license", "generate-enterprise-owner"]
+						},
+						"description": "Generate an enterprise license for the global owner. Requires license:manage scope and canCreateLicenses permission via OwnerAccessControlService. Enhanced with better error handling and user information in response."
 					},
 					"response": []
 				}
 			],
-			"description": "License operations that require license:manage authorization scope"
+			"description": "License operations that require license:manage authorization scope and OwnerAccessControlService validation with canCreateLicenses permission"
 		},
 		{
 			"name": "Community Edition",
@@ -548,56 +656,6 @@
 				}
 			],
 			"description": "Community edition registration endpoints"
-		},
-		{
-			"name": "Enterprise Owner Operations (Requires global:owner role)",
-			"item": [
-				{
-					"name": "Generate Enterprise Owner License",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test('Status code is 200 or 400', function () {",
-									"    pm.expect(pm.response.code).to.be.oneOf([200, 400]);",
-									"});",
-									"",
-									"if (pm.response.code === 200) {",
-									"    pm.test('License generated successfully', function () {",
-									"        const responseJson = pm.response.json();",
-									"        pm.expect(responseJson).to.have.property('success', true);",
-									"        pm.expect(responseJson).to.have.property('licenseKey');",
-									"        pm.expect(responseJson).to.have.property('owner', 'global:owner');",
-									"        ",
-									"        // Store the generated license key for other tests",
-									"        pm.collectionVariables.set('generated_license_key', responseJson.licenseKey);",
-									"    });",
-									"} else {",
-									"    pm.test('Error response for non-owner user', function () {",
-									"        const responseJson = pm.response.json();",
-									"        pm.expect(responseJson).to.have.property('message');",
-									"    });",
-									"}"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/rest/license/generate-enterprise-owner",
-							"host": ["{{base_url}}"],
-							"path": ["rest", "license", "generate-enterprise-owner"]
-						},
-						"description": "Generate an enterprise license for the global owner. Only accessible by users with global:owner role."
-					},
-					"response": []
-				}
-			],
-			"description": "Operations restricted to users with global:owner role"
 		}
 	],
 	"event": [
@@ -610,6 +668,15 @@
 					"const authToken = pm.collectionVariables.get('auth_token');",
 					"if (!authToken && pm.info.requestName !== 'Login') {",
 					"    console.log('Warning: No authentication token found. Please run the Login request first.');",
+					"}",
+					"",
+					"// Log current user role for access control debugging",
+					"const userRole = pm.collectionVariables.get('user_role');",
+					"if (userRole && pm.info.requestName.includes('Enterprise') || pm.info.requestName.includes('License')) {",
+					"    console.log('Current user role:', userRole);",
+					"    if (userRole !== 'global:owner') {",
+					"        console.log('Note: Some operations may require global:owner role and canCreateLicenses permission');",
+					"    }",
 					"}"
 				]
 			}
@@ -638,6 +705,18 @@
 					"        console.log('Insufficient permissions for this operation.');",
 					"        pm.response.to.have.status(403);",
 					"    });",
+					"}",
+					"",
+					"// Handle OwnerAccessControlService validation errors",
+					"if (pm.response.code === 400) {",
+					"    try {",
+					"        const responseJson = pm.response.json();",
+					"        if (responseJson.message && responseJson.message.includes('global owner')) {",
+					"            console.log('OwnerAccessControlService validation failed - requires global:owner role and canCreateLicenses permission');",
+					"        }",
+					"    } catch (e) {",
+					"        // Ignore JSON parsing errors",
+					"    }",
 					"}"
 				]
 			}
