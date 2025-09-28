@@ -12,7 +12,7 @@ import { LicenseService } from './license.service';
 import { LocalLicenseApiService } from './local-license-api.service';
 
 @RestController('/license')
-export class LicenseController {
+export class EnhancedLicenseController {
 	constructor(
 		private readonly licenseService: LicenseService,
 		private readonly instanceSettings: InstanceSettings,
@@ -123,18 +123,43 @@ export class LicenseController {
 		}
 
 		try {
-			const licenseKey = await this.localLicenseApiService.generateEnterpriseOwnerLicense();
+			// Enhanced error handling and logging
+			console.log('Starting enterprise license generation for global:owner');
+			console.log('User details:', {
+				id: req.user.id,
+				email: req.user.email,
+				role: userRole,
+			});
+
+			const licenseKey = await this.localLicenseApiService.generateEnterpriseOwnerLicenseEnhanced(
+				req.user,
+			);
+
+			console.log('Enterprise license generated successfully:', licenseKey);
+
 			return {
 				success: true,
 				message: 'Enterprise license generated successfully for global:owner',
 				licenseKey,
 				owner: 'global:owner',
+				user: {
+					id: req.user.id,
+					email: req.user.email,
+					role: userRole,
+				},
 			};
 		} catch (error: unknown) {
+			console.error('Failed to generate enterprise license:', error);
+
 			if (error instanceof Error) {
-				throw new BadRequestError(error.message);
+				// Provide more detailed error information
+				throw new BadRequestError(
+					`Failed to generate enterprise license for global:owner: ${error.message}`,
+				);
 			} else {
-				throw new BadRequestError('Failed to generate enterprise license');
+				throw new BadRequestError(
+					'Failed to generate enterprise license for global:owner - Unknown error',
+				);
 			}
 		}
 	}
@@ -148,6 +173,29 @@ export class LicenseController {
 	async validateLicenseKey(@Body body: { licenseKey: string }) {
 		const validation = this.localLicenseApiService.validateLicenseKey(body.licenseKey);
 		return validation;
+	}
+
+	@Get('/debug/plans')
+	async getDebugPlans() {
+		try {
+			const plans = await this.localLicenseApiService.getAvailablePlansWithEndpoints();
+			return {
+				success: true,
+				plansCount: plans.length,
+				plans: plans.map((plan) => ({
+					id: plan.id,
+					slug: plan.slug,
+					name: plan.name,
+					isActive: plan.isActive,
+				})),
+			};
+		} catch (error) {
+			console.error('Debug plans error:', error);
+			return {
+				success: false,
+				error: error instanceof Error ? error.message : 'Unknown error',
+			};
+		}
 	}
 
 	private async getTokenAndData() {

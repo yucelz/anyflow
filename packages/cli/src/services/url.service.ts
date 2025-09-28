@@ -21,6 +21,12 @@ export class UrlService {
 
 	/** Return the n8n instance base URL without trailing slash */
 	getInstanceBaseUrl(): string {
+		// Check for BASE_URL environment variable first
+		const baseUrl = process.env.BASE_URL;
+		if (baseUrl) {
+			return baseUrl.endsWith('/') ? baseUrl.slice(0, baseUrl.length - 1) : baseUrl;
+		}
+
 		const n8nBaseUrl = this.trimQuotes(this.globalConfig.editorBaseUrl) || this.getWebhookBaseUrl();
 
 		return n8nBaseUrl.endsWith('/') ? n8nBaseUrl.slice(0, n8nBaseUrl.length - 1) : n8nBaseUrl;

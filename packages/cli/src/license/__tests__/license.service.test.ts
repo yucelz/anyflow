@@ -1,15 +1,13 @@
 import type { LicenseState } from '@n8n/backend-common';
 import type { WorkflowRepository } from '@n8n/db';
 import type { TEntitlement } from '@n8n_io/license-sdk';
-import axios, { AxiosError } from 'axios';
 import { mock } from 'jest-mock-extended';
 
 import { BadRequestError } from '@/errors/response-errors/bad-request.error';
 import type { EventService } from '@/events/event.service';
 import type { License } from '@/license';
 import { LicenseErrors, LicenseService } from '@/license/license.service';
-
-jest.mock('axios');
+import type { LocalLicenseApiService } from '@/license/local-license-api.service';
 
 describe('LicenseService', () => {
 	const license = mock<License>();
@@ -17,6 +15,7 @@ describe('LicenseService', () => {
 	const workflowRepository = mock<WorkflowRepository>();
 	const entitlement = mock<TEntitlement>({ productId: '123' });
 	const eventService = mock<EventService>();
+	const localLicenseApiService = mock<LocalLicenseApiService>();
 	const licenseService = new LicenseService(
 		mock(),
 		license,
@@ -24,6 +23,7 @@ describe('LicenseService', () => {
 		workflowRepository,
 		mock(),
 		eventService,
+		localLicenseApiService,
 	);
 
 	license.getMainPlan.mockReturnValue(entitlement);
@@ -108,14 +108,16 @@ describe('LicenseService', () => {
 
 	describe('registerCommunityEdition', () => {
 		test('on success', async () => {
-			jest
-				.spyOn(axios, 'post')
-				.mockResolvedValueOnce({ data: { title: 'Title', text: 'Text', licenseKey: 'abc-123' } });
+			localLicenseApiService.registerCommunityEdition.mockResolvedValueOnce({
+				title: 'Title',
+				text: 'Text',
+				licenseKey: 'abc-123',
+			});
 			const data = await licenseService.registerCommunityEdition({
 				userId: '123',
 				email: 'test@ema.il',
 				instanceId: '123',
-				instanceUrl: 'http://localhost',
+				instanceUrl: process.env.BASE_URL || 'http://localhost',
 				licenseType: 'community-registered',
 			});
 
@@ -128,16 +130,18 @@ describe('LicenseService', () => {
 		});
 
 		test('on failure', async () => {
-			jest.spyOn(axios, 'post').mockRejectedValueOnce(new AxiosError('Failed'));
+			localLicenseApiService.registerCommunityEdition.mockRejectedValueOnce(
+				new BadRequestError('Failed to register community edition'),
+			);
 			await expect(
 				licenseService.registerCommunityEdition({
 					userId: '123',
 					email: 'test@ema.il',
 					instanceId: '123',
-					instanceUrl: 'http://localhost',
+					instanceUrl: process.env.BASE_URL || 'http://localhost',
 					licenseType: 'community-registered',
 				}),
-			).rejects.toThrowError('Failed');
+			).rejects.toThrowError('Failed to register community edition');
 			expect(eventService.emit).not.toHaveBeenCalled();
 		});
 	});

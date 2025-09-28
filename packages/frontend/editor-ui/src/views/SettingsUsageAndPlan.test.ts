@@ -36,8 +36,8 @@ describe('SettingsUsageAndPlan', () => {
 		uiStore = mockedStore(useUIStore);
 		usersStore = mockedStore(useUsersStore);
 
-		usageStore.viewPlansUrl = 'https://subscription.n8n.io';
-		usageStore.managePlanUrl = 'https://subscription.n8n.io';
+		usageStore.viewPlansUrl = 'http://localhost/api/v1/subscriptions/plans';
+		usageStore.managePlanUrl = 'http://localhost/api/v1/subscriptions/current';
 	});
 
 	it('should not throw errors when rendering', async () => {

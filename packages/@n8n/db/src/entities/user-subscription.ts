@@ -21,7 +21,7 @@ export class UserSubscription extends WithTimestamps {
 	@JoinColumn({ name: 'userId' })
 	user: User;
 
-	@Column()
+	@Column({ type: 'uuid' })
 	@Index()
 	userId: string;
 
@@ -29,7 +29,7 @@ export class UserSubscription extends WithTimestamps {
 	@JoinColumn({ name: 'planId' })
 	plan: SubscriptionPlan;
 
-	@Column()
+	@Column({ type: 'uuid' })
 	planId: string;
 
 	@Column()

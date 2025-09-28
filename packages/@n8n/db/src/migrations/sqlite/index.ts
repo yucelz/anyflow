@@ -94,6 +94,8 @@ import { CreateDataStoreTables1754475614601 } from '../common/1754475614601-Crea
 import { ReplaceDataStoreTablesWithDataTables1754475614602 } from '../common/1754475614602-ReplaceDataStoreTablesWithDataTables';
 import type { Migration } from '../migration-types';
 import { LinkRoleToProjectRelationTable1753953244168 } from './../common/1753953244168-LinkRoleToProjectRelationTable';
+import { CreateSubscriptionTables1740500000000 } from './1740500000000-CreateSubscriptionTables';
+import { SeedSubscriptionPlans1740500001000 } from './1740500001000-SeedSubscriptionPlans';
 
 const sqliteMigrations: Migration[] = [
 	InitialMigration1588102412422,
@@ -175,6 +177,8 @@ const sqliteMigrations: Migration[] = [
 	CreateFolderTable1738709609940,
 	CreateAnalyticsTables1739549398681,
 	UpdateParentFolderIdColumn1740445074052,
+	CreateSubscriptionTables1740500000000,
+	SeedSubscriptionPlans1740500001000,
 	RenameAnalyticsToInsights1741167584277,
 	AddScopesColumnToApiKeys1742918400000,
 	AddWorkflowStatisticsRootCount1745587087521,

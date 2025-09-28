@@ -17,7 +17,6 @@ const toast = useToast();
 const i18n = useI18n();
 const router = useRouter();
 
-const verificationCode = ref('');
 const userEmail = ref('');
 const isEmailVerified = ref(false);
 const showVerification = ref(false);
@@ -27,7 +26,7 @@ async function sendVerificationCode(email: string) {
 		// Save email for later use
 		userEmail.value = email;
 		// This should make API call to send verification email
-		const response = await usersStore.sendVerificationEmail(email);
+		await usersStore.sendVerificationEmail(email);
 		showVerification.value = true;
 		toast.showMessage({
 			title: 'Verification Code Sent',
@@ -42,7 +41,7 @@ async function sendVerificationCode(email: string) {
 async function verifyCode(code: string) {
 	try {
 		// This should make API call to verify the code
-		const response = await usersStore.verifyEmailCode(userEmail.value, code);
+		await usersStore.verifyEmailCode(userEmail.value, code);
 		isEmailVerified.value = true;
 		toast.showMessage({
 			title: 'Email Verified',

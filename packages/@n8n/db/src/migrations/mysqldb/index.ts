@@ -98,6 +98,8 @@ import { CreateDataStoreTables1754475614601 } from '../common/1754475614601-Crea
 import { ReplaceDataStoreTablesWithDataTables1754475614602 } from '../common/1754475614602-ReplaceDataStoreTablesWithDataTables';
 import type { Migration } from '../migration-types';
 import { UpdateParentFolderIdColumn1740445074052 } from '../mysqldb/1740445074052-UpdateParentFolderIdColumn';
+import { CreateSubscriptionTables1740500000000 } from './1740500000000-CreateSubscriptionTables';
+import { SeedSubscriptionPlans1740500001000 } from './1740500001000-SeedSubscriptionPlans';
 
 export const mysqlMigrations: Migration[] = [
 	InitialMigration1588157391238,
@@ -183,6 +185,8 @@ export const mysqlMigrations: Migration[] = [
 	FixTestDefinitionPrimaryKey1739873751194,
 	CreateAnalyticsTables1739549398681,
 	UpdateParentFolderIdColumn1740445074052,
+	CreateSubscriptionTables1740500000000,
+	SeedSubscriptionPlans1740500001000,
 	RenameAnalyticsToInsights1741167584277,
 	AddScopesColumnToApiKeys1742918400000,
 	AddWorkflowStatisticsRootCount1745587087521,

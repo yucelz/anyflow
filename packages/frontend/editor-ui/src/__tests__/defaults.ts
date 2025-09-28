@@ -159,4 +159,5 @@ export const defaultSettings: FrontendSettings = {
 	},
 	activeModules: [],
 	envFeatureFlags: {},
+	subscriptionEnabled: false,
 };

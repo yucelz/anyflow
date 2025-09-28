@@ -14,6 +14,18 @@ import { Folder } from './folder';
 import { FolderTagMapping } from './folder-tag-mapping';
 import { InvalidAuthToken } from './invalid-auth-token';
 import { Invoice } from './invoice';
+import {
+	LicenseEntity,
+	LicenseType,
+	LicenseStatus,
+	ApprovalStatus,
+	LicenseFeatures,
+	LicenseLimits,
+} from './license.entity';
+import { LicenseApprovalEntity, ApprovalType, ApprovalPriority } from './license-approval.entity';
+import { LicenseAuditLogEntity, LicenseAuditAction } from './license-audit-log.entity';
+import { LicenseTemplateEntity } from './license-template.entity';
+import { OwnerManagementEntity } from './owner-management.entity';
 import { PaymentMethod } from './payment-method';
 import { ProcessedData } from './processed-data';
 import { Project } from './project';
@@ -76,6 +88,19 @@ export {
 	SubscriptionPlan,
 	UsageTracking,
 	UserSubscription,
+	LicenseEntity,
+	LicenseApprovalEntity,
+	LicenseAuditLogEntity,
+	LicenseTemplateEntity,
+	OwnerManagementEntity,
+	ApprovalType,
+	ApprovalPriority,
+	ApprovalStatus,
+	LicenseType,
+	LicenseStatus,
+	LicenseFeatures,
+	LicenseLimits,
+	LicenseAuditAction,
 };
 
 export const entities = {
@@ -117,4 +142,9 @@ export const entities = {
 	SubscriptionPlan,
 	UsageTracking,
 	UserSubscription,
+	LicenseEntity,
+	LicenseApprovalEntity,
+	LicenseAuditLogEntity,
+	LicenseTemplateEntity,
+	OwnerManagementEntity,
 };

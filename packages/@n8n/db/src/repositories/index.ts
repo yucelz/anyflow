@@ -34,3 +34,8 @@ export { WebhookRepository } from './webhook.repository';
 export { UserRepository } from './user.repository';
 export { SubscriptionPlanRepository } from './subscription-plan.repository';
 export { UserSubscriptionRepository } from './user-subscription.repository';
+export { LicenseRepository } from './license.repository';
+export { LicenseApprovalRepository } from './license-approval.repository';
+export { LicenseAuditLogRepository } from './license-audit-log.repository';
+export { LicenseTemplateRepository } from './license-template.repository';
+export { OwnerManagementRepository } from './owner-management.repository';

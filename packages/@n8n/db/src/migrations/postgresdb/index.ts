@@ -48,6 +48,7 @@ import { UpdateParentFolderIdColumn1740445074052 } from './1740445074052-UpdateP
 import { CreateEmailVerificationTable1740445074053 } from './1740445074053-CreateEmailVerificationTable';
 import { CreateSubscriptionTables1740500000000 } from './1740500000000-CreateSubscriptionTables';
 import { SeedSubscriptionPlans1740500001000 } from './1740500001000-SeedSubscriptionPlans';
+import { CreateLicenseManagementTables1740500002000 } from './1740500002000-CreateLicenseManagementTables';
 import { CreateLdapEntities1674509946020 } from '../common/1674509946020-CreateLdapEntities';
 import { PurgeInvalidWorkflowConnections1675940580449 } from '../common/1675940580449-PurgeInvalidWorkflowConnections';
 import { RemoveResetPasswordColumns1690000000030 } from '../common/1690000000030-RemoveResetPasswordColumns';
@@ -187,6 +188,7 @@ export const postgresMigrations: Migration[] = [
 	CreateEmailVerificationTable1740445074053,
 	CreateSubscriptionTables1740500000000,
 	SeedSubscriptionPlans1740500001000,
+	CreateLicenseManagementTables1740500002000,
 	RenameAnalyticsToInsights1741167584277,
 	AddScopesColumnToApiKeys1742918400000,
 	AddWorkflowStatisticsRootCount1745587087521,

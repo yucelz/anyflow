@@ -45,7 +45,6 @@ export const useUsersStore = defineStore(STORES.USERS, () => {
 	const currentUserId = ref<string | null>(null);
 	const usersById = ref<Record<string, IUser>>({});
 	const userQuota = ref<number>(-1);
-	const pendingVerifications = ref<Record<string, string>>({}); // email -> code mapping
 
 	const loginHooks = ref<LoginHook[]>([]);
 	const logoutHooks = ref<LogoutHook[]>([]);

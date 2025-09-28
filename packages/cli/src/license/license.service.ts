@@ -9,6 +9,7 @@ import { BadRequestError } from '@/errors/response-errors/bad-request.error';
 import { EventService } from '@/events/event.service';
 import { License } from '@/license';
 import { UrlService } from '@/services/url.service';
+import { LocalLicenseApiService } from './local-license-api.service';
 
 type LicenseError = Error & { errorId?: keyof typeof LicenseErrors };
 
@@ -30,6 +31,7 @@ export class LicenseService {
 		private readonly workflowRepository: WorkflowRepository,
 		private readonly urlService: UrlService,
 		private readonly eventService: EventService,
+		private readonly localLicenseApiService: LocalLicenseApiService,
 	) {}
 
 	async getLicenseData() {
@@ -58,7 +60,8 @@ export class LicenseService {
 	}
 
 	async requestEnterpriseTrial(user: User) {
-		await axios.post('https://enterprise.n8n.io/enterprise-trial', {
+		// Use local API service instead of external endpoint
+		await this.localLicenseApiService.requestEnterpriseTrial({
 			licenseType: 'enterprise',
 			firstName: user.firstName,
 			lastName: user.lastName,
@@ -81,24 +84,29 @@ export class LicenseService {
 		licenseType: string;
 	}): Promise<{ title: string; text: string }> {
 		try {
-			const {
-				data: { licenseKey, ...rest },
-			} = await axios.post<{ title: string; text: string; licenseKey: string }>(
-				'https://enterprise.n8n.io/community-registered',
-				{
-					email,
-					instanceId,
-					instanceUrl,
-					licenseType,
-				},
-			);
-			this.eventService.emit('license-community-plus-registered', { userId, email, licenseKey });
-			return rest;
+			// Use local API service instead of external endpoint
+			const response = await this.localLicenseApiService.registerCommunityEdition({
+				email,
+				instanceId,
+				instanceUrl,
+				licenseType,
+			});
+
+			// Emit the existing event with the license key
+			this.eventService.emit('license-community-plus-registered', {
+				userId,
+				email,
+				licenseKey: response.licenseKey,
+			});
+
+			// Return title and text without the license key (as expected by the interface)
+			return {
+				title: response.title,
+				text: response.text,
+			};
 		} catch (e: unknown) {
-			if (e instanceof AxiosError) {
-				const error = e as AxiosError<{ message: string }>;
-				const errorMsg = error.response?.data?.message ?? e.message;
-				throw new BadRequestError('Failed to register community edition: ' + errorMsg);
+			if (e instanceof BadRequestError) {
+				throw e;
 			} else {
 				this.logger.error('Failed to register community edition', { error: ensureError(e) });
 				throw new BadRequestError('Failed to register community edition');

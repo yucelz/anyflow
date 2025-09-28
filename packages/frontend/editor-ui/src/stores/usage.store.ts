@@ -60,11 +60,10 @@ export const useUsageStore = defineStore('usage', () => {
 	const commonSubscriptionAppUrlQueryParams = computed(
 		() => `instanceid=${instanceId.value}&version=${appVersion.value}`,
 	);
-	const subscriptionAppUrl = computed(() =>
-		settingsStore.settings.license.environment === 'production'
-			? 'https://subscription.n8n.io'
-			: 'https://staging-subscription.n8n.io',
-	);
+	const subscriptionAppUrl = computed(() => {
+		const baseUrl = settingsStore.settings.n8nMetadata?.baseUrl || window.location.origin;
+		return `${baseUrl}/api/v1/subscriptions`;
+	});
 
 	const setLoading = (loading: boolean) => {
 		state.loading = loading;
@@ -102,6 +101,58 @@ export const useUsageStore = defineStore('usage', () => {
 	const registerCommunityEdition = async (email: string) =>
 		await usageApi.registerCommunityEdition(rootStore.restApiContext, { email });
 
+	const getSubscriptionPlans = async () => {
+		return await usageApi.getSubscriptionPlans(rootStore.restApiContext);
+	};
+
+	const getCurrentSubscription = async () => {
+		return await usageApi.getCurrentSubscription(rootStore.restApiContext);
+	};
+
+	const createSubscription = async (data: {
+		planSlug: string;
+		billingCycle: 'monthly' | 'yearly';
+		paymentMethodId?: string;
+	}) => {
+		return await usageApi.createSubscription(rootStore.restApiContext, data);
+	};
+
+	const upgradeSubscription = async (subscriptionId: string, planSlug: string) => {
+		return await usageApi.upgradeSubscription(rootStore.restApiContext, subscriptionId, {
+			planSlug,
+		});
+	};
+
+	const cancelSubscription = async (subscriptionId: string, cancelAtPeriodEnd: boolean = true) => {
+		return await usageApi.cancelSubscription(rootStore.restApiContext, subscriptionId, {
+			cancelAtPeriodEnd,
+		});
+	};
+
+	const getUsageLimits = async () => {
+		return await usageApi.getUsageLimits(rootStore.restApiContext);
+	};
+
+	const requestEnterpriseTrialLocal = async () => {
+		return await usageApi.requestEnterpriseTrialLocal(rootStore.restApiContext);
+	};
+
+	const registerCommunityEditionLocal = async (email: string) => {
+		return await usageApi.registerCommunityEditionLocal(rootStore.restApiContext, { email });
+	};
+
+	const getLicenseInfoByKey = async (licenseKey: string) => {
+		return await usageApi.getLicenseInfo(rootStore.restApiContext, licenseKey);
+	};
+
+	const validateLicenseKey = async (licenseKey: string) => {
+		return await usageApi.validateLicenseKey(rootStore.restApiContext, { licenseKey });
+	};
+
+	const getAvailablePlansWithEndpoints = async () => {
+		return await usageApi.getAvailablePlansWithEndpoints(rootStore.restApiContext);
+	};
+
 	return {
 		setLoading,
 		getLicenseInfo,
@@ -110,6 +161,17 @@ export const useUsageStore = defineStore('usage', () => {
 		refreshLicenseManagementToken,
 		requestEnterpriseLicenseTrial,
 		registerCommunityEdition,
+		getSubscriptionPlans,
+		getCurrentSubscription,
+		createSubscription,
+		upgradeSubscription,
+		cancelSubscription,
+		getUsageLimits,
+		requestEnterpriseTrialLocal,
+		registerCommunityEditionLocal,
+		getLicenseInfoByKey,
+		validateLicenseKey,
+		getAvailablePlansWithEndpoints,
 		planName,
 		planId,
 		activeWorkflowTriggersLimit,
@@ -127,11 +189,11 @@ export const useUsageStore = defineStore('usage', () => {
 					state.data.usage.activeWorkflowTriggers.warningThreshold,
 		),
 		viewPlansUrl: computed(
-			() => `${subscriptionAppUrl.value}?${commonSubscriptionAppUrlQueryParams.value}`,
+			() => `${subscriptionAppUrl.value}/plans?${commonSubscriptionAppUrlQueryParams.value}`,
 		),
 		managePlanUrl: computed(
 			() =>
-				`${subscriptionAppUrl.value}/manage?token=${managementToken.value}&${commonSubscriptionAppUrlQueryParams.value}`,
+				`${subscriptionAppUrl.value}/current?token=${managementToken.value}&${commonSubscriptionAppUrlQueryParams.value}`,
 		),
 		isLoading: computed(() => state.loading),
 		telemetryPayload: computed<UsageTelemetry>(() => ({
