@@ -72,6 +72,12 @@ export class SubscriptionPlan extends WithTimestamps {
 	@Column({ type: 'int', default: 14 })
 	trialDays: number;
 
+	@Column({ type: 'varchar', length: 255, nullable: true })
+	PriceIdMonthly: string;
+
+	@Column({ type: 'varchar', length: 255, nullable: true })
+	PriceIdYearly: string;
+
 	@OneToMany('UserSubscription', 'plan')
 	subscriptions: UserSubscription[];
 

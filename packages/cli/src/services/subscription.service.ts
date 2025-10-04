@@ -75,10 +75,19 @@ export class SubscriptionService {
 			// Calculate price based on billing cycle
 			const amount = billingCycle === 'yearly' ? plan.yearlyPrice : plan.monthlyPrice;
 
+			// Get the actual Stripe price ID from the plan
+			const stripePriceId = billingCycle === 'yearly' ? plan.PriceIdYearly : plan.PriceIdMonthly;
+
+			if (!stripePriceId) {
+				throw new Error(
+					`No Stripe price ID configured for plan '${plan.slug}' with ${billingCycle} billing`,
+				);
+			}
+
 			// Create subscription in payment provider
 			const providerSubscription = await this.paymentService.createSubscription({
 				customerId,
-				priceId: `${plan.slug}_${billingCycle}`, // Use plan slug as price identifier
+				priceId: stripePriceId, // Use actual Stripe price ID
 				paymentMethodId,
 				trialDays: plan.trialDays,
 			});
@@ -113,7 +122,7 @@ export class SubscriptionService {
 			return savedSubscription;
 		} catch (error) {
 			this.logger.error('Failed to create subscription:', error);
-			throw new Error('Failed to create subscription');
+			throw error; // Pass the original error instead of generic message
 		}
 	}
 
@@ -129,13 +138,23 @@ export class SubscriptionService {
 		}
 
 		try {
-			// Update subscription in payment provider
-			const newPriceId = `${newPlan.slug}_${currentSubscription.billingCycle}`;
+			// Get the actual Stripe price ID for the new plan
+			const newStripePriceId =
+				currentSubscription.billingCycle === 'yearly'
+					? newPlan.PriceIdYearly
+					: newPlan.PriceIdMonthly;
+
+			if (!newStripePriceId) {
+				throw new Error(
+					`No Stripe price ID configured for plan '${newPlan.slug}' with ${currentSubscription.billingCycle} billing`,
+				);
+			}
+
 			const stripeSubscriptionId = currentSubscription.metadata?.stripeSubscriptionId as string;
 
 			if (stripeSubscriptionId) {
 				await this.paymentService.updateSubscription(stripeSubscriptionId, {
-					priceId: newPriceId,
+					priceId: newStripePriceId,
 				});
 			}
 

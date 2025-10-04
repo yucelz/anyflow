@@ -1,0 +1,630 @@
+{
+	"info": {
+		"_postman_id": "subscription-controller-test",
+		"name": "Subscription Controller API",
+		"description": "Complete Postman collection for testing the subscription.controller.ts endpoints",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Login (Setup)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const jsonData = pm.response.json();",
+									"    pm.environment.set('auth_token', jsonData.token || jsonData.accessToken);",
+									"    pm.environment.set('user_id', jsonData.user?.id);",
+									"    console.log('Authentication successful');",
+									"} else {",
+									"    console.log('Authentication failed');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"{{user_email}}\",\n    \"password\": \"{{user_password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["auth", "login"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Subscription Plans",
+			"item": [
+				{
+					"name": "Get Available Plans",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains plans array', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.be.an('array');",
+									"});",
+									"",
+									"pm.test('Plans have required properties', function () {",
+									"    const jsonData = pm.response.json();",
+									"    if (jsonData.length > 0) {",
+									"        pm.expect(jsonData[0]).to.have.property('slug');",
+									"        pm.expect(jsonData[0]).to.have.property('name');",
+									"        pm.expect(jsonData[0]).to.have.property('price');",
+									"    }",
+									"});",
+									"",
+									"// Store first plan slug for testing",
+									"if (pm.response.code === 200) {",
+									"    const plans = pm.response.json();",
+									"    if (plans.length > 0) {",
+									"        pm.environment.set('test_plan_slug', plans[0].slug);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/subscriptions/plans",
+							"host": ["{{base_url}}"],
+							"path": ["subscriptions", "plans"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Subscription Management",
+			"item": [
+				{
+					"name": "Create Subscription",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains subscription data', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('id');",
+									"    pm.expect(jsonData).to.have.property('planSlug');",
+									"    pm.expect(jsonData).to.have.property('status');",
+									"});",
+									"",
+									"// Store subscription ID for future tests",
+									"if (pm.response.code === 200) {",
+									"    const subscription = pm.response.json();",
+									"    pm.environment.set('subscription_id', subscription.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"planSlug\": \"{{test_plan_slug}}\",\n    \"billingCycle\": \"monthly\",\n    \"paymentMethodId\": \"{{payment_method_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/subscriptions/subscribe",
+							"host": ["{{base_url}}"],
+							"path": ["subscriptions", "subscribe"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Subscription - Yearly",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains subscription data', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('billingCycle', 'yearly');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"planSlug\": \"{{test_plan_slug}}\",\n    \"billingCycle\": \"yearly\",\n    \"paymentMethodId\": \"{{payment_method_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/subscriptions/subscribe",
+							"host": ["{{base_url}}"],
+							"path": ["subscriptions", "subscribe"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Current Subscription",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains subscription or null', function () {",
+									"    const jsonData = pm.response.json();",
+									"    if (jsonData !== null) {",
+									"        pm.expect(jsonData).to.have.property('id');",
+									"        pm.expect(jsonData).to.have.property('planSlug');",
+									"        pm.expect(jsonData).to.have.property('status');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/subscriptions/current",
+							"host": ["{{base_url}}"],
+							"path": ["subscriptions", "current"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Upgrade Subscription",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains updated subscription', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('id');",
+									"    pm.expect(jsonData).to.have.property('planSlug');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"planSlug\": \"{{upgrade_plan_slug}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/subscriptions/{{subscription_id}}/upgrade",
+							"host": ["{{base_url}}"],
+							"path": ["subscriptions", "{{subscription_id}}", "upgrade"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Cancel Subscription (At Period End)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains canceled subscription', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('id');",
+									"    pm.expect(jsonData).to.have.property('status');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"cancelAtPeriodEnd\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/subscriptions/{{subscription_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["subscriptions", "{{subscription_id}}"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Cancel Subscription (Immediately)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains canceled subscription', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('id');",
+									"    pm.expect(jsonData).to.have.property('status');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"cancelAtPeriodEnd\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/subscriptions/{{subscription_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["subscriptions", "{{subscription_id}}"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Usage & Limits",
+			"item": [
+				{
+					"name": "Get Usage Limits",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains usage data', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.be.an('object');",
+									"    // Add specific checks based on your usage structure",
+									"    // pm.expect(jsonData).to.have.property('executions');",
+									"    // pm.expect(jsonData).to.have.property('workflows');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/subscriptions/usage",
+							"host": ["{{base_url}}"],
+							"path": ["subscriptions", "usage"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Error Handling Tests",
+			"item": [
+				{
+					"name": "Create Subscription - Invalid Plan",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 400', function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test('Response contains error message', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('error');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"planSlug\": \"invalid-plan\",\n    \"billingCycle\": \"monthly\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/subscriptions/subscribe",
+							"host": ["{{base_url}}"],
+							"path": ["subscriptions", "subscribe"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Subscription - Invalid Billing Cycle",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 400', function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test('Response contains error message', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('error');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"planSlug\": \"{{test_plan_slug}}\",\n    \"billingCycle\": \"invalid-cycle\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/subscriptions/subscribe",
+							"host": ["{{base_url}}"],
+							"path": ["subscriptions", "subscribe"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Upgrade Subscription - Invalid ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 400 or 404', function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([400, 404]);",
+									"});",
+									"",
+									"pm.test('Response contains error message', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('error');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"planSlug\": \"{{test_plan_slug}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/subscriptions/invalid-id/upgrade",
+							"host": ["{{base_url}}"],
+							"path": ["subscriptions", "invalid-id", "upgrade"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Unauthorized Request",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 401', function () {",
+									"    pm.response.to.have.status(401);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/subscriptions/current",
+							"host": ["{{base_url}}"],
+							"path": ["subscriptions", "current"]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [""]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [""]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:5678/api",
+			"type": "string"
+		}
+	]
+}

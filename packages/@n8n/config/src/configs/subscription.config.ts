@@ -13,11 +13,11 @@ export class SubscriptionConfig {
 	stripeWebhookSecret: string = '';
 
 	@Env('STRIPE_ENVIRONMENT')
-	stripeEnvironment: 'test' | 'live' = 'test';
+	stripeEnvironment: string = '';
 
 	/** General Subscription Settings */
 	@Env('DEFAULT_CURRENCY')
-	defaultCurrency: string = 'USD';
+	defaultCurrency: string = '';
 
 	@Env('TRIAL_PERIOD_DAYS')
 	trialPeriodDays: number = 14;
@@ -26,7 +26,7 @@ export class SubscriptionConfig {
 	subscriptionEnabled: boolean = false;
 
 	@Env('DEFAULT_PAYMENT_PROVIDER')
-	defaultPaymentProvider: 'stripe' = 'stripe';
+	defaultPaymentProvider: string = '';
 
 	/** Usage Limits for Free Plan */
 	@Env('FREE_PLAN_EXECUTIONS_LIMIT')
