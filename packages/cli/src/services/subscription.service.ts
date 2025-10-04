@@ -4,7 +4,7 @@ import { SubscriptionConfig } from '@n8n/config';
 import { SubscriptionPlanRepository, UserSubscriptionRepository } from '@n8n/db';
 
 import { IPaymentService } from './payment/payment-service.interface';
-import { AdyenPaymentService } from './payment/adyen-payment.service';
+import { StripePaymentService } from './payment/stripe-payment.service';
 
 @Service()
 export class SubscriptionService {
@@ -15,10 +15,10 @@ export class SubscriptionService {
 		private subscriptionConfig: SubscriptionConfig,
 		private subscriptionPlanRepository: SubscriptionPlanRepository,
 		private userSubscriptionRepository: UserSubscriptionRepository,
-		private adyenPaymentService: AdyenPaymentService,
+		private stripePaymentService: StripePaymentService,
 	) {
-		// Use Adyen as the only payment service
-		this.paymentService = this.adyenPaymentService;
+		// Use Stripe as the payment service
+		this.paymentService = this.stripePaymentService;
 	}
 
 	async getAvailablePlans() {
@@ -96,8 +96,8 @@ export class SubscriptionService {
 				trialStart: providerSubscription.trialStart,
 				trialEnd: providerSubscription.trialEnd,
 				metadata: {
-					adyenSubscriptionId: providerSubscription.id,
-					adyenCustomerId: customerId,
+					stripeSubscriptionId: providerSubscription.id,
+					stripeCustomerId: customerId,
 				},
 			});
 
@@ -131,10 +131,10 @@ export class SubscriptionService {
 		try {
 			// Update subscription in payment provider
 			const newPriceId = `${newPlan.slug}_${currentSubscription.billingCycle}`;
-			const adyenSubscriptionId = currentSubscription.metadata?.adyenSubscriptionId as string;
+			const stripeSubscriptionId = currentSubscription.metadata?.stripeSubscriptionId as string;
 
-			if (adyenSubscriptionId) {
-				await this.paymentService.updateSubscription(adyenSubscriptionId, {
+			if (stripeSubscriptionId) {
+				await this.paymentService.updateSubscription(stripeSubscriptionId, {
 					priceId: newPriceId,
 				});
 			}
@@ -167,9 +167,9 @@ export class SubscriptionService {
 
 		try {
 			// Cancel subscription in payment provider
-			const adyenSubscriptionId = subscription.metadata?.adyenSubscriptionId as string;
-			if (adyenSubscriptionId) {
-				await this.paymentService.cancelSubscription(adyenSubscriptionId, cancelAtPeriodEnd);
+			const stripeSubscriptionId = subscription.metadata?.stripeSubscriptionId as string;
+			if (stripeSubscriptionId) {
+				await this.paymentService.cancelSubscription(stripeSubscriptionId, cancelAtPeriodEnd);
 			}
 
 			// Update subscription record in database
@@ -228,19 +228,25 @@ export class SubscriptionService {
 				data: webhookData.data,
 			});
 
-			// Handle different webhook events
+			// Handle different Stripe webhook events
 			switch (webhookData.type) {
-				case 'AUTHORISATION':
-					await this.handlePaymentAuthorised(webhookData.data);
+				case 'customer.subscription.created':
+					await this.handleSubscriptionCreated(webhookData.data);
 					break;
-				case 'CANCELLATION':
-					await this.handleSubscriptionCanceled(webhookData.data);
+				case 'customer.subscription.updated':
+					await this.handleSubscriptionUpdated(webhookData.data);
 					break;
-				case 'REFUND':
-					await this.handleRefund(webhookData.data);
+				case 'customer.subscription.deleted':
+					await this.handleSubscriptionDeleted(webhookData.data);
 					break;
-				case 'CHARGEBACK':
-					await this.handleChargeback(webhookData.data);
+				case 'invoice.payment_succeeded':
+					await this.handlePaymentSucceeded(webhookData.data);
+					break;
+				case 'invoice.payment_failed':
+					await this.handlePaymentFailed(webhookData.data);
+					break;
+				case 'customer.subscription.trial_will_end':
+					await this.handleTrialWillEnd(webhookData.data);
 					break;
 				default:
 					this.logger.info(`Unhandled webhook event: ${webhookData.type}`);
@@ -253,23 +259,33 @@ export class SubscriptionService {
 		}
 	}
 
-	private async handlePaymentAuthorised(data: any) {
-		this.logger.info(`Payment authorised: ${data.pspReference}`);
+	private async handleSubscriptionCreated(data: any) {
+		this.logger.info(`Stripe subscription created: ${data.object.id}`);
+		// Subscription is already created in our database during the creation flow
+	}
+
+	private async handleSubscriptionUpdated(data: any) {
+		this.logger.info(`Stripe subscription updated: ${data.object.id}`);
+		// TODO: Update local subscription data based on Stripe changes
+	}
+
+	private async handleSubscriptionDeleted(data: any) {
+		this.logger.info(`Stripe subscription deleted: ${data.object.id}`);
+		// TODO: Find subscription by Stripe ID and update status to canceled
+	}
+
+	private async handlePaymentSucceeded(data: any) {
+		this.logger.info(`Payment succeeded for subscription: ${data.object.subscription}`);
 		// TODO: Update subscription status, create invoice record, etc.
 	}
 
-	private async handleSubscriptionCanceled(data: any) {
-		this.logger.info(`Subscription canceled: ${data.pspReference}`);
-		// TODO: Find subscription by reference and update status
+	private async handlePaymentFailed(data: any) {
+		this.logger.warn(`Payment failed for subscription: ${data.object.subscription}`);
+		// TODO: Handle failed payment, update subscription status if needed
 	}
 
-	private async handleRefund(data: any) {
-		this.logger.info(`Refund processed: ${data.pspReference}`);
-		// TODO: Handle refund logic
-	}
-
-	private async handleChargeback(data: any) {
-		this.logger.warn(`Chargeback received: ${data.pspReference}`);
-		// TODO: Handle chargeback logic
+	private async handleTrialWillEnd(data: any) {
+		this.logger.info(`Trial ending soon for subscription: ${data.object.id}`);
+		// TODO: Send notification to user about trial ending
 	}
 }

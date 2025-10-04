@@ -341,20 +341,25 @@ export declare namespace SubscriptionRequest {
 //            /webhooks
 // ----------------------------------
 export declare namespace WebhookRequest {
-	type AdyenWebhook = AuthlessRequest<
+	type StripeWebhook = AuthlessRequest<
 		{},
 		{},
 		{
-			eventCode: string;
-			pspReference: string;
-			merchantReference?: string;
-			amount?: {
-				value: number;
-				currency: string;
+			id: string;
+			object: 'event';
+			api_version: string;
+			created: number;
+			data: {
+				object: any;
+				previous_attributes?: any;
 			};
-			success?: boolean;
-			reason?: string;
-			additionalData?: Record<string, string>;
+			livemode: boolean;
+			pending_webhooks: number;
+			request: {
+				id: string | null;
+				idempotency_key: string | null;
+			} | null;
+			type: string;
 		}
 	>;
 

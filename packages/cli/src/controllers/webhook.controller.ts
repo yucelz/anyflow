@@ -11,35 +11,35 @@ export class WebhookController {
 		private logger: Logger,
 	) {}
 
-	@Post('/adyen', { skipAuth: true })
-	async handleAdyenWebhook(req: WebhookRequest.AdyenWebhook, res: Response) {
-		const signature = req.headers['x-adyen-hmac-signature'] as string;
+	@Post('/stripe', { skipAuth: true })
+	async handleStripeWebhook(req: WebhookRequest.StripeWebhook, res: Response) {
+		const signature = req.headers['stripe-signature'] as string;
 		const payload = req.body;
 
 		if (!signature) {
-			this.logger.warn('Adyen webhook received without signature');
+			this.logger.warn('Stripe webhook received without signature');
 			return res.status(400).json({ error: 'Missing signature' });
 		}
 
 		try {
-			this.logger.info('Processing Adyen webhook', {
-				eventCode: payload.eventCode,
-				pspReference: payload.pspReference,
+			this.logger.info('Processing Stripe webhook', {
+				eventType: payload.type,
+				eventId: payload.id,
 			});
 
-			const result = await this.subscriptionService.handleWebhook('adyen', payload, signature);
+			const result = await this.subscriptionService.handleWebhook('stripe', payload, signature);
 
-			this.logger.info('Adyen webhook processed successfully', {
-				eventCode: payload.eventCode,
-				pspReference: payload.pspReference,
+			this.logger.info('Stripe webhook processed successfully', {
+				eventType: payload.type,
+				eventId: payload.id,
 			});
 
-			return res.json(result);
+			return res.json({ received: true });
 		} catch (error) {
-			this.logger.error('Failed to process Adyen webhook', {
+			this.logger.error('Failed to process Stripe webhook', {
 				error: error.message,
-				eventCode: payload.eventCode,
-				pspReference: payload.pspReference,
+				eventType: payload.type,
+				eventId: payload.id,
 			});
 
 			return res.status(400).json({ error: 'Webhook processing failed' });

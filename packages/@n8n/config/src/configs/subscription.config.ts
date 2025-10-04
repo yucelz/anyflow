@@ -2,18 +2,18 @@ import { Config, Env } from '../decorators';
 
 @Config
 export class SubscriptionConfig {
-	/** Adyen Configuration */
-	@Env('ADYEN_API_KEY')
-	adyenApiKey: string = '';
+	/** Stripe Configuration */
+	@Env('STRIPE_PUBLISHABLE_KEY')
+	stripePublishableKey: string = '';
 
-	@Env('ADYEN_MERCHANT_ACCOUNT')
-	adyenMerchantAccount: string = '';
+	@Env('STRIPE_SECRET_KEY')
+	stripeSecretKey: string = '';
 
-	@Env('ADYEN_WEBHOOK_SECRET')
-	adyenWebhookSecret: string = '';
+	@Env('STRIPE_WEBHOOK_SECRET')
+	stripeWebhookSecret: string = '';
 
-	@Env('ADYEN_ENVIRONMENT')
-	adyenEnvironment: 'TEST' | 'LIVE' = 'TEST';
+	@Env('STRIPE_ENVIRONMENT')
+	stripeEnvironment: 'test' | 'live' = 'test';
 
 	/** General Subscription Settings */
 	@Env('DEFAULT_CURRENCY')
@@ -26,7 +26,7 @@ export class SubscriptionConfig {
 	subscriptionEnabled: boolean = false;
 
 	@Env('DEFAULT_PAYMENT_PROVIDER')
-	defaultPaymentProvider: 'adyen' = 'adyen';
+	defaultPaymentProvider: 'stripe' = 'stripe';
 
 	/** Usage Limits for Free Plan */
 	@Env('FREE_PLAN_EXECUTIONS_LIMIT')

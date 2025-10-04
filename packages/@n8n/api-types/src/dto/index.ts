@@ -104,5 +104,5 @@ export { CreateSubscriptionRequestDto } from './subscription/create-subscription
 export { UpgradeSubscriptionRequestDto } from './subscription/upgrade-subscription-request.dto';
 export { CancelSubscriptionRequestDto } from './subscription/cancel-subscription-request.dto';
 
-export { AdyenWebhookRequestDto } from './webhook/adyen-webhook-request.dto';
+export { StripeWebhookRequestDto } from './webhook/stripe-webhook-request.dto';
 export { SubscriptionEventRequestDto } from './webhook/subscription-event-request.dto';
