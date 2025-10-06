@@ -29,6 +29,10 @@ export class SubscriptionService {
 		return await this.subscriptionPlanRepository.findActiveBySlug(slug);
 	}
 
+	async getPlanById(id: string) {
+		return await this.subscriptionPlanRepository.findActiveById(id);
+	}
+
 	async getPopularPlan() {
 		return await this.subscriptionPlanRepository.findPopular();
 	}
@@ -63,14 +67,26 @@ export class SubscriptionService {
 			throw new Error('User already has an active subscription');
 		}
 
+		// Handle free plan subscription
+		if (planSlug.toLowerCase() === 'free') {
+			return await this.createFreeSubscription(userId, plan, billingCycle);
+		}
+
+		// Handle paid plan subscription
 		try {
+			// Validate payment method for paid plans
+			if (!paymentMethodId) {
+				throw new Error('Payment method is required for paid plans');
+			}
+
 			// Create customer in payment provider
-			const customerId = await this.paymentService.createCustomer({
+			const customer = await this.paymentService.createCustomer({
 				id: userId,
 				email: userEmail,
 				firstName: userName?.split(' ')[0],
 				lastName: userName?.split(' ').slice(1).join(' '),
 			});
+			const customerId = customer.id;
 
 			// Calculate price based on billing cycle
 			const amount = billingCycle === 'yearly' ? plan.yearlyPrice : plan.monthlyPrice;
@@ -92,6 +108,33 @@ export class SubscriptionService {
 				trialDays: plan.trialDays,
 			});
 
+			// Helper function to safely convert dates
+			const safeDateConversion = (date: Date | undefined): Date | undefined => {
+				return date && !isNaN(date.getTime()) ? date : undefined;
+			};
+
+			// Helper function to calculate proper period end based on billing cycle
+			const calculatePeriodEnd = (startDate: Date, cycle: 'monthly' | 'yearly'): Date => {
+				const periodStart = new Date(startDate);
+				if (cycle === 'yearly') {
+					periodStart.setFullYear(periodStart.getFullYear() + 1);
+				} else {
+					// Monthly billing - add 1 month
+					periodStart.setMonth(periodStart.getMonth() + 1);
+				}
+				return periodStart;
+			};
+
+			const currentPeriodStart =
+				safeDateConversion(providerSubscription.currentPeriodStart) || new Date();
+			const currentPeriodEnd =
+				safeDateConversion(providerSubscription.currentPeriodEnd) ||
+				calculatePeriodEnd(currentPeriodStart, billingCycle);
+
+			console.log(
+				`🔍 DEBUG createSubscription - billingCycle: ${billingCycle}, currentPeriodStart: ${currentPeriodStart}, currentPeriodEnd: ${currentPeriodEnd}`,
+			);
+
 			// Create subscription record in database
 			const subscription = this.userSubscriptionRepository.create({
 				userId,
@@ -100,19 +143,20 @@ export class SubscriptionService {
 				billingCycle,
 				amount,
 				currency: 'USD',
-				currentPeriodStart: providerSubscription.currentPeriodStart,
-				currentPeriodEnd: providerSubscription.currentPeriodEnd,
-				trialStart: providerSubscription.trialStart,
-				trialEnd: providerSubscription.trialEnd,
+				currentPeriodStart,
+				currentPeriodEnd,
+				trialStart: safeDateConversion(providerSubscription.trialStart),
+				trialEnd: safeDateConversion(providerSubscription.trialEnd),
+				stripeSubscriptionId: providerSubscription.id,
+				stripeCustomerId: customerId,
 				metadata: {
-					stripeSubscriptionId: providerSubscription.id,
-					stripeCustomerId: customerId,
+					createdAt: new Date().toISOString(),
 				},
 			});
 
 			const savedSubscription = await this.userSubscriptionRepository.save(subscription);
 
-			this.logger.info(`Subscription created for user ${userId}`, {
+			this.logger.info(`Paid subscription created for user ${userId}`, {
 				subscriptionId: savedSubscription.id,
 				planSlug,
 				billingCycle,
@@ -121,8 +165,52 @@ export class SubscriptionService {
 
 			return savedSubscription;
 		} catch (error) {
-			this.logger.error('Failed to create subscription:', error);
+			this.logger.error('Failed to create paid subscription:', error);
 			throw error; // Pass the original error instead of generic message
+		}
+	}
+
+	private async createFreeSubscription(
+		userId: string,
+		plan: any,
+		billingCycle: 'monthly' | 'yearly',
+	) {
+		try {
+			const now = new Date();
+			const oneYear = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000); // 1 year from now
+
+			// Create free subscription record in database without payment processing
+			const subscriptionData = {
+				userId,
+				planId: plan.id,
+				status: 'active' as const,
+				billingCycle,
+				amount: 0, // Free plan has no cost
+				currency: 'USD',
+				currentPeriodStart: now,
+				currentPeriodEnd: oneYear, // Free subscriptions last indefinitely or for a year
+				trialStart: undefined,
+				trialEnd: undefined,
+				metadata: {
+					isFree: true,
+					createdAt: now.toISOString(),
+				},
+			};
+
+			const subscription = this.userSubscriptionRepository.create(subscriptionData);
+			const savedSubscription = await this.userSubscriptionRepository.save(subscription);
+
+			this.logger.info(`Free subscription created for user ${userId}`, {
+				subscriptionId: savedSubscription.id,
+				planSlug: plan.slug,
+				billingCycle,
+				amount: 0,
+			});
+
+			return savedSubscription;
+		} catch (error) {
+			this.logger.error('Failed to create free subscription:', error);
+			throw new Error('Failed to create free subscription');
 		}
 	}
 
@@ -213,6 +301,174 @@ export class SubscriptionService {
 		}
 	}
 
+	async createSubscriptionSetup(params: {
+		userId: string;
+		planId: string;
+		billingCycle: 'monthly' | 'yearly';
+		userEmail: string;
+	}) {
+		const { userId, planId, billingCycle, userEmail } = params;
+
+		const plan = await this.subscriptionPlanRepository.findActiveById(planId);
+		if (!plan) {
+			throw new Error('Plan not found');
+		}
+
+		// Get the Stripe price ID based on billing cycle
+		const stripePriceId = billingCycle === 'yearly' ? plan.PriceIdYearly : plan.PriceIdMonthly;
+
+		if (!stripePriceId) {
+			throw new Error(
+				`No Stripe price ID configured for plan '${plan.slug}' with ${billingCycle} billing`,
+			);
+		}
+
+		// Create or get Stripe customer
+		const customerId = await this.getOrCreateStripeCustomer(userId, userEmail);
+
+		// Create setup intent for collecting payment method
+		const setupIntent = await this.paymentService.createSetupIntent({
+			customerId,
+			metadata: {
+				userId,
+				planId,
+				billingCycle,
+				stripePriceId,
+			},
+		});
+
+		return {
+			clientSecret: setupIntent.client_secret,
+			customerId,
+			stripePriceId,
+			planName: plan.name,
+			amount: billingCycle === 'yearly' ? plan.yearlyPrice : plan.monthlyPrice,
+		};
+	}
+
+	async createRecurringSubscription(params: {
+		userId: string;
+		planId: string;
+		billingCycle: 'monthly' | 'yearly';
+		paymentMethodId: string;
+	}) {
+		const { userId, planId, billingCycle, paymentMethodId } = params;
+
+		const plan = await this.subscriptionPlanRepository.findActiveById(planId);
+		if (!plan) {
+			throw new Error('Plan not found');
+		}
+
+		// Check if user already has an active subscription
+		const existingSubscription = await this.userSubscriptionRepository.findActiveByUserId(userId);
+		if (existingSubscription) {
+			throw new Error('User already has an active subscription');
+		}
+
+		// Get the Stripe price ID based on billing cycle
+		const stripePriceId = billingCycle === 'yearly' ? plan.PriceIdYearly : plan.PriceIdMonthly;
+
+		if (!stripePriceId) {
+			throw new Error(
+				`No Stripe price ID configured for plan '${plan.slug}' with ${billingCycle} billing`,
+			);
+		}
+
+		try {
+			// Get or create Stripe customer
+			const customerId = await this.getOrCreateStripeCustomer(userId, '');
+
+			// Attach payment method to customer
+			await this.paymentService.attachPaymentMethod(paymentMethodId, customerId);
+
+			// Create recurring subscription in Stripe
+			const stripeSubscription = await this.paymentService.createSubscription({
+				customerId,
+				priceId: stripePriceId,
+				paymentMethodId,
+				trialDays: plan.trialDays || undefined,
+				metadata: {
+					userId,
+					planId,
+				},
+			});
+
+			// Create subscription record in database
+			const amount = billingCycle === 'yearly' ? plan.yearlyPrice : plan.monthlyPrice;
+
+			// Helper function to safely convert timestamps to dates
+			const safeTimestampToDate = (timestamp: number | undefined): Date | undefined => {
+				return timestamp ? new Date(timestamp * 1000) : undefined;
+			};
+
+			const safeDateConversion = (date: Date | undefined): Date | undefined => {
+				return date && !isNaN(date.getTime()) ? date : undefined;
+			};
+
+			// Helper function to calculate proper period end based on billing cycle
+			const calculatePeriodEnd = (startDate: Date, cycle: 'monthly' | 'yearly'): Date => {
+				const periodStart = new Date(startDate);
+				if (cycle === 'yearly') {
+					periodStart.setFullYear(periodStart.getFullYear() + 1);
+				} else {
+					// Monthly billing - add 1 month
+					periodStart.setMonth(periodStart.getMonth() + 1);
+				}
+				return periodStart;
+			};
+
+			const currentPeriodStart = stripeSubscription.current_period_start
+				? safeTimestampToDate(stripeSubscription.current_period_start) || new Date()
+				: safeDateConversion(stripeSubscription.currentPeriodStart) || new Date();
+
+			const currentPeriodEnd = stripeSubscription.current_period_end
+				? safeTimestampToDate(stripeSubscription.current_period_end) ||
+					calculatePeriodEnd(currentPeriodStart, billingCycle)
+				: safeDateConversion(stripeSubscription.currentPeriodEnd) ||
+					calculatePeriodEnd(currentPeriodStart, billingCycle);
+
+			console.log(
+				`🔍 DEBUG createRecurringSubscription - billingCycle: ${billingCycle}, currentPeriodStart: ${currentPeriodStart}, currentPeriodEnd: ${currentPeriodEnd}`,
+			);
+
+			const subscriptionData = {
+				userId,
+				planId: plan.id,
+				status: stripeSubscription.status as any,
+				billingCycle,
+				amount,
+				currency: 'USD' as const,
+				currentPeriodStart,
+				currentPeriodEnd,
+				trialStart: stripeSubscription.trial_start
+					? safeTimestampToDate(stripeSubscription.trial_start)
+					: safeDateConversion(stripeSubscription.trialStart),
+				trialEnd: stripeSubscription.trial_end
+					? safeTimestampToDate(stripeSubscription.trial_end)
+					: safeDateConversion(stripeSubscription.trialEnd),
+				metadata: {
+					stripeSubscriptionId: stripeSubscription.id,
+					stripeCustomerId: customerId,
+				},
+			};
+
+			const savedSubscription = await this.userSubscriptionRepository.save(subscriptionData);
+
+			this.logger.info(`Recurring subscription created for user ${userId}`, {
+				subscriptionId: savedSubscription.id,
+				stripeSubscriptionId: stripeSubscription.id,
+				planSlug: plan.slug,
+				billingCycle,
+				amount,
+			});
+
+			return savedSubscription;
+		} catch (error) {
+			this.logger.error('Failed to create recurring subscription:', error);
+			throw error;
+		}
+	}
+
 	async getUsageLimits(userId: string) {
 		const subscription = await this.userSubscriptionRepository.findActiveByUserId(userId);
 
@@ -235,6 +491,23 @@ export class SubscriptionService {
 			credentialsLeft: Math.floor(plan.credentialsLimit * 0.8), // 80% remaining
 			usersLeft: Math.floor(plan.usersLimit * 0.5), // 50% remaining
 		};
+	}
+
+	private async getOrCreateStripeCustomer(userId: string, email: string): Promise<string> {
+		// Check if user already has a Stripe customer ID
+		const existingSubscription = await this.userSubscriptionRepository.findByUserId(userId);
+
+		if (existingSubscription?.metadata?.stripeCustomerId) {
+			return existingSubscription.metadata.stripeCustomerId as string;
+		}
+
+		// Create new Stripe customer
+		const customer = await this.paymentService.createCustomer({
+			id: userId,
+			email,
+		});
+
+		return customer.id;
 	}
 
 	async handleWebhook(provider: string, payload: any, signature: string) {

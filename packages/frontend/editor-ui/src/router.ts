@@ -69,6 +69,10 @@ const EvaluationRootView = async () =>
 	await import('@/views/Evaluations.ee/EvaluationsRootView.vue');
 const PrebuiltAgentTemplatesView = async () =>
 	await import('@/views/PrebuiltAgentTemplatesView.vue');
+const PricingPlansView = async () => await import('@/views/subscription/PricingPlans.vue');
+const StripeCheckoutView = async () => await import('@/views/subscription/StripeCheckout.vue');
+const SubscriptionSuccessView = async () =>
+	await import('@/views/subscription/SubscriptionSuccess.vue');
 
 function getTemplatesRedirect(defaultRedirect: VIEWS[keyof VIEWS]): { name: string } | false {
 	const settingsStore = useSettingsStore();
@@ -754,6 +758,48 @@ export const routes: RouteRecordRaw[] = [
 			},
 			telemetry: {
 				pageCategory: 'auth',
+			},
+		},
+	},
+	{
+		path: '/pricing-plans',
+		name: VIEWS.PRICING_PLANS,
+		components: {
+			default: PricingPlansView,
+			sidebar: MainSidebar,
+		},
+		meta: {
+			middleware: ['authenticated'],
+			telemetry: {
+				pageCategory: 'subscription',
+			},
+		},
+	},
+	{
+		path: '/subscription/checkout',
+		name: VIEWS.SUBSCRIPTION_CHECKOUT,
+		components: {
+			default: StripeCheckoutView,
+			sidebar: MainSidebar,
+		},
+		meta: {
+			middleware: ['authenticated'],
+			telemetry: {
+				pageCategory: 'subscription',
+			},
+		},
+	},
+	{
+		path: '/subscription/success',
+		name: VIEWS.SUBSCRIPTION_SUCCESS,
+		components: {
+			default: SubscriptionSuccessView,
+			sidebar: MainSidebar,
+		},
+		meta: {
+			middleware: ['authenticated'],
+			telemetry: {
+				pageCategory: 'subscription',
 			},
 		},
 	},

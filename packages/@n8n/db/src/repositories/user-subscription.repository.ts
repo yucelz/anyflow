@@ -31,6 +31,17 @@ export class UserSubscriptionRepository extends Repository<UserSubscription> {
 		});
 	}
 
+	async findByUserId(userId: string): Promise<UserSubscription | null> {
+		return await this.findOne({
+			where: {
+				userId,
+			},
+			order: {
+				createdAt: 'DESC',
+			},
+		});
+	}
+
 	async findByStripeSubscriptionId(stripeSubscriptionId: string): Promise<UserSubscription | null> {
 		return await this.findOne({
 			where: {

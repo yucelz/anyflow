@@ -5,9 +5,18 @@ export interface IPaymentService {
 		email: string;
 		firstName?: string;
 		lastName?: string;
-	}): Promise<string>;
+	}): Promise<{ id: string }>;
 	updateCustomer(customerId: string, data: Partial<{ email: string; name: string }>): Promise<void>;
 	deleteCustomer(customerId: string): Promise<void>;
+
+	// Setup intents for payment collection
+	createSetupIntent(params: {
+		customerId: string;
+		metadata?: Record<string, string>;
+	}): Promise<{
+		client_secret: string;
+		id: string;
+	}>;
 
 	// Subscription management
 	createSubscription(params: {
@@ -15,6 +24,7 @@ export interface IPaymentService {
 		priceId: string;
 		paymentMethodId?: string;
 		trialDays?: number;
+		metadata?: Record<string, string>;
 	}): Promise<{
 		id: string;
 		status: string;
@@ -22,6 +32,10 @@ export interface IPaymentService {
 		currentPeriodEnd: Date;
 		trialStart?: Date;
 		trialEnd?: Date;
+		current_period_start?: number;
+		current_period_end?: number;
+		trial_start?: number;
+		trial_end?: number;
 	}>;
 
 	updateSubscription(
@@ -35,6 +49,8 @@ export interface IPaymentService {
 	cancelSubscription(subscriptionId: string, cancelAtPeriodEnd: boolean): Promise<void>;
 
 	// Payment method management
+	attachPaymentMethod(paymentMethodId: string, customerId: string): Promise<void>;
+
 	createPaymentMethod(
 		customerId: string,
 		paymentData: any,

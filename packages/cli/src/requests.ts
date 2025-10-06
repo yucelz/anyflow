@@ -320,6 +320,25 @@ export declare namespace SubscriptionRequest {
 		}
 	>;
 
+	type CreateSetup = AuthenticatedRequest<
+		{},
+		{},
+		{
+			planId: string;
+			billingCycle: 'monthly' | 'yearly';
+		}
+	>;
+
+	type CreateRecurring = AuthenticatedRequest<
+		{},
+		{},
+		{
+			planId: string;
+			billingCycle: 'monthly' | 'yearly';
+			paymentMethodId: string;
+		}
+	>;
+
 	type Upgrade = AuthenticatedRequest<
 		{ id: string },
 		{},

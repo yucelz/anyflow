@@ -608,6 +608,9 @@ export const enum VIEWS {
 	ENTITY_UNAUTHORIZED = 'EntityUnAuthorized',
 	PRE_BUILT_AGENT_TEMPLATES = 'PreBuiltAgentTemplates',
 	LICENSE_MANAGEMENT = 'LicenseManagement',
+	PRICING_PLANS = 'PricingPlans',
+	SUBSCRIPTION_CHECKOUT = 'SubscriptionCheckout',
+	SUBSCRIPTION_SUCCESS = 'SubscriptionSuccess',
 }
 
 export const EDITABLE_CANVAS_VIEWS = [VIEWS.WORKFLOW, VIEWS.NEW_WORKFLOW, VIEWS.EXECUTION_DEBUG];

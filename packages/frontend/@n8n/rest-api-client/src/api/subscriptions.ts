@@ -59,6 +59,34 @@ export interface IUsageLimits {
 	usersLeft: number;
 }
 
+export interface ISubscriptionSetupResponse {
+	clientSecret: string;
+	customerId: string;
+	stripePriceId: string;
+	planName: string;
+	amount: number;
+}
+
+export interface IPaymentMethod {
+	id: string;
+	type: string;
+	last4?: string;
+	brand?: string;
+	expiryMonth?: number;
+	expiryYear?: number;
+	isDefault: boolean;
+}
+
+export interface IInvoice {
+	id: string;
+	amount: number;
+	currency: string;
+	status: string;
+	invoiceUrl?: string;
+	created: string;
+	dueDate?: string;
+}
+
 export const subscriptionsApi = {
 	async getPlans(context: IRestApiContext): Promise<ISubscriptionPlan[]> {
 		return await makeRestApiRequest(context, 'GET', '/subscriptions/plans');
@@ -66,6 +94,28 @@ export const subscriptionsApi = {
 
 	async getCurrentSubscription(context: IRestApiContext): Promise<IUserSubscription | null> {
 		return await makeRestApiRequest(context, 'GET', '/subscriptions/current');
+	},
+
+	async getPlanById(context: IRestApiContext, planId: string): Promise<ISubscriptionPlan> {
+		return await makeRestApiRequest(context, 'GET', `/subscriptions/plans/${planId}`);
+	},
+
+	async createSubscriptionSetup(
+		context: IRestApiContext,
+		params: { planId: string; billingCycle: 'monthly' | 'yearly' },
+	): Promise<ISubscriptionSetupResponse> {
+		return await makeRestApiRequest(context, 'POST', '/subscriptions/create-setup', params);
+	},
+
+	async createRecurringSubscription(
+		context: IRestApiContext,
+		params: {
+			planId: string;
+			billingCycle: 'monthly' | 'yearly';
+			paymentMethodId: string;
+		},
+	): Promise<IUserSubscription> {
+		return await makeRestApiRequest(context, 'POST', '/subscriptions/create-recurring', params);
 	},
 
 	async createSubscription(
@@ -102,5 +152,13 @@ export const subscriptionsApi = {
 
 	async getUsageLimits(context: IRestApiContext): Promise<IUsageLimits> {
 		return await makeRestApiRequest(context, 'GET', '/subscriptions/usage');
+	},
+
+	async getPaymentMethods(context: IRestApiContext): Promise<IPaymentMethod[]> {
+		return await makeRestApiRequest(context, 'GET', '/billing/payment-methods');
+	},
+
+	async getInvoices(context: IRestApiContext): Promise<IInvoice[]> {
+		return await makeRestApiRequest(context, 'GET', '/billing/invoices');
 	},
 };

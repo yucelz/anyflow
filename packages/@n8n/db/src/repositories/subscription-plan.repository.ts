@@ -18,13 +18,22 @@ export class SubscriptionPlanRepository extends Repository<SubscriptionPlan> {
 		});
 	}
 
+	async findActiveById(id: string): Promise<SubscriptionPlan | null> {
+		return await this.findOne({
+			where: {
+				id,
+				isActive: true,
+			},
+		});
+	}
+
 	async findAllActive(): Promise<SubscriptionPlan[]> {
 		return await this.find({
 			where: {
 				isActive: true,
 			},
 			order: {
-				monthlyPrice: 'ASC',
+				sortOrder: 'ASC',
 			},
 		});
 	}

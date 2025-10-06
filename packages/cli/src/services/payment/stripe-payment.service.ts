@@ -39,7 +39,7 @@ export class StripePaymentService implements IPaymentService {
 		email: string;
 		firstName?: string;
 		lastName?: string;
-	}): Promise<string> {
+	}): Promise<{ id: string }> {
 		if (!this.stripe) {
 			throw new Error('Stripe not initialized');
 		}
@@ -53,9 +53,50 @@ export class StripePaymentService implements IPaymentService {
 				},
 			});
 
-			return customer.id;
+			return { id: customer.id };
 		} catch (error) {
 			this.logger.error('Failed to create Stripe customer:', error);
+			throw error;
+		}
+	}
+
+	async createSetupIntent(params: {
+		customerId: string;
+		metadata?: Record<string, string>;
+	}): Promise<{ client_secret: string; id: string }> {
+		if (!this.stripe) {
+			throw new Error('Stripe not initialized');
+		}
+
+		try {
+			const setupIntent = await this.stripe.setupIntents.create({
+				customer: params.customerId,
+				payment_method_types: ['card'],
+				usage: 'off_session',
+				metadata: params.metadata || {},
+			});
+
+			return {
+				client_secret: setupIntent.client_secret,
+				id: setupIntent.id,
+			};
+		} catch (error) {
+			this.logger.error('Failed to create Stripe setup intent:', error);
+			throw error;
+		}
+	}
+
+	async attachPaymentMethod(paymentMethodId: string, customerId: string): Promise<void> {
+		if (!this.stripe) {
+			throw new Error('Stripe not initialized');
+		}
+
+		try {
+			await this.stripe.paymentMethods.attach(paymentMethodId, {
+				customer: customerId,
+			});
+		} catch (error) {
+			this.logger.error('Failed to attach payment method to customer:', error);
 			throw error;
 		}
 	}
@@ -97,6 +138,7 @@ export class StripePaymentService implements IPaymentService {
 		priceId: string;
 		paymentMethodId?: string;
 		trialDays?: number;
+		metadata?: Record<string, string>;
 	}) {
 		if (!this.stripe) {
 			throw new Error('Stripe not initialized');
@@ -110,6 +152,11 @@ export class StripePaymentService implements IPaymentService {
 				payment_settings: { save_default_payment_method: 'on_subscription' },
 				expand: ['latest_invoice.payment_intent'],
 			};
+
+			// Add metadata if provided
+			if (params.metadata) {
+				subscriptionData.metadata = params.metadata;
+			}
 
 			// Add default payment method if provided
 			if (params.paymentMethodId) {
@@ -133,6 +180,10 @@ export class StripePaymentService implements IPaymentService {
 					? new Date(subscription.trial_start * 1000)
 					: undefined,
 				trialEnd: subscription.trial_end ? new Date(subscription.trial_end * 1000) : undefined,
+				current_period_start: subscription.current_period_start,
+				current_period_end: subscription.current_period_end,
+				trial_start: subscription.trial_start,
+				trial_end: subscription.trial_end,
 			};
 		} catch (error) {
 			this.logger.error('Failed to create Stripe subscription:', error);

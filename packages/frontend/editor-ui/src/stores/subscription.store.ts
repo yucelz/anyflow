@@ -1,200 +1,221 @@
 import { defineStore } from 'pinia';
-import { computed, ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useRootStore } from '@n8n/stores/useRootStore';
-import { useSettingsStore } from '@/stores/settings.store';
 import { subscriptionsApi } from '@n8n/rest-api-client/api/subscriptions';
 import type {
-	ISubscriptionPlan,
-	IUserSubscription,
-	IUsageLimits,
-} from '@n8n/rest-api-client/api/subscriptions';
+	SubscriptionPlan,
+	UserSubscription,
+	PaymentMethod,
+	Invoice,
+} from '@/types/subscription';
+
+export interface SubscriptionSetupResponse {
+	clientSecret: string;
+	customerId: string;
+	stripePriceId: string;
+	planName: string;
+	amount: number;
+}
 
 export const useSubscriptionStore = defineStore('subscription', () => {
+	// Get root store for API context
 	const rootStore = useRootStore();
-	const settingsStore = useSettingsStore();
 
 	// State
+	const currentSubscription = ref<UserSubscription | null>(null);
+	const availablePlans = ref<SubscriptionPlan[]>([]);
+	const paymentMethods = ref<PaymentMethod[]>([]);
+	const invoices = ref<Invoice[]>([]);
+	const usage = ref<any>(null);
 	const isLoading = ref(false);
-	const plans = ref<ISubscriptionPlan[]>([]);
-	const currentSubscription = ref<IUserSubscription | null>(null);
-	const usageLimits = ref<IUsageLimits | null>(null);
 
 	// Getters
-	const isSubscriptionEnabled = computed(() => {
-		return settingsStore.settings.subscriptionEnabled === true;
+	const isSubscribed = computed(() => {
+		return currentSubscription.value?.isActive ?? false;
 	});
 
 	const currentPlan = computed(() => {
-		if (!currentSubscription.value) return null;
-		return plans.value.find((plan) => plan.id === currentSubscription.value?.planId) || null;
+		return currentSubscription.value?.plan;
 	});
 
-	const isFreePlan = computed(() => {
-		return !currentSubscription.value || currentPlan.value?.slug === 'free';
-	});
-
-	const isProPlan = computed(() => {
-		return currentPlan.value?.slug === 'pro';
-	});
-
-	const isTrialing = computed(() => {
-		return currentSubscription.value?.status === 'trialing';
-	});
-
-	const trialDaysLeft = computed(() => {
-		if (!currentSubscription.value?.trialEnd) return 0;
+	const trialDaysRemaining = computed(() => {
+		if (!currentSubscription.value?.isTrialing) return 0;
 		const now = new Date();
-		const trialEnd = new Date(currentSubscription.value.trialEnd);
+		const trialEnd = new Date(currentSubscription.value.trialEnd!);
 		const diffTime = trialEnd.getTime() - now.getTime();
-		const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-		return Math.max(0, diffDays);
-	});
-
-	const renewalDate = computed(() => {
-		if (!currentSubscription.value?.currentPeriodEnd) return null;
-		return new Date(currentSubscription.value.currentPeriodEnd);
-	});
-
-	const daysUntilRenewal = computed(() => {
-		if (!renewalDate.value) return 0;
-		const now = new Date();
-		const diffTime = renewalDate.value.getTime() - now.getTime();
-		const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-		return Math.max(0, diffDays);
+		return Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
 	});
 
 	// Actions
-	const setLoading = (loading: boolean) => {
-		isLoading.value = loading;
-	};
-
-	const fetchPlans = async () => {
+	const loadAvailablePlans = async () => {
 		try {
-			setLoading(true);
-			const response = await subscriptionsApi.getPlans(rootStore.restApiContext);
-			plans.value = response;
+			console.log('🔍 DEBUG loadAvailablePlans - Starting to load plans');
+			isLoading.value = true;
+			const plans = await subscriptionsApi.getPlans(rootStore.restApiContext);
+			console.log('🔍 DEBUG loadAvailablePlans - API response:', plans);
+			// Ensure we always have an array, even if API returns null/undefined
+			availablePlans.value = Array.isArray(plans) ? (plans as SubscriptionPlan[]) : [];
+			console.log(
+				'🔍 DEBUG loadAvailablePlans - Final availablePlans.value:',
+				availablePlans.value,
+			);
 		} catch (error) {
-			console.error('Failed to fetch subscription plans:', error);
-			throw error;
+			console.error('🔍 DEBUG loadAvailablePlans - Error:', error);
+			// Keep availablePlans as empty array on error
+			availablePlans.value = [];
 		} finally {
-			setLoading(false);
+			isLoading.value = false;
 		}
 	};
 
-	const fetchCurrentSubscription = async () => {
+	const loadCurrentSubscription = async () => {
 		try {
-			setLoading(true);
-			const response = await subscriptionsApi.getCurrentSubscription(rootStore.restApiContext);
-			currentSubscription.value = response;
+			const subscription = await subscriptionsApi.getCurrentSubscription(rootStore.restApiContext);
+			// Handle null response gracefully
+			currentSubscription.value = subscription
+				? (subscription as unknown as UserSubscription)
+				: null;
 		} catch (error) {
-			console.error('Failed to fetch current subscription:', error);
-			throw error;
-		} finally {
-			setLoading(false);
+			console.error('Failed to load current subscription:', error);
+			// Explicitly set to null on error
+			currentSubscription.value = null;
 		}
 	};
 
-	const fetchUsageLimits = async () => {
+	const getPlanById = async (planId: string) => {
+		const plan = availablePlans.value.find((p) => p.id === planId);
+		if (plan) return plan;
+
+		// If not in cache, fetch from API
 		try {
-			const response = await subscriptionsApi.getUsageLimits(rootStore.restApiContext);
-			usageLimits.value = response;
+			const fetchedPlan = await subscriptionsApi.getPlanById(rootStore.restApiContext, planId);
+			return fetchedPlan as SubscriptionPlan;
 		} catch (error) {
-			console.error('Failed to fetch usage limits:', error);
-			throw error;
+			console.error('Failed to get plan:', error);
+			return null;
 		}
 	};
 
-	const createSubscription = async (params: {
-		planSlug: string;
+	const createSubscriptionSetup = async (params: {
+		planId: string;
 		billingCycle: 'monthly' | 'yearly';
-		paymentMethodId?: string;
+	}): Promise<SubscriptionSetupResponse> => {
+		try {
+			const result = await subscriptionsApi.createSubscriptionSetup(
+				rootStore.restApiContext,
+				params,
+			);
+			return result as SubscriptionSetupResponse;
+		} catch (error) {
+			console.error('Failed to create subscription setup:', error);
+			throw error;
+		}
+	};
+
+	const createRecurringSubscription = async (params: {
+		planId: string;
+		billingCycle: 'monthly' | 'yearly';
+		paymentMethodId: string;
 	}) => {
 		try {
-			setLoading(true);
-			const response = await subscriptionsApi.createSubscription(rootStore.restApiContext, params);
-			currentSubscription.value = response;
-			await fetchUsageLimits();
-			return response;
+			const result = await subscriptionsApi.createRecurringSubscription(
+				rootStore.restApiContext,
+				params,
+			);
+			currentSubscription.value = result as unknown as UserSubscription;
+			return currentSubscription.value;
 		} catch (error) {
 			console.error('Failed to create subscription:', error);
 			throw error;
-		} finally {
-			setLoading(false);
 		}
 	};
 
 	const upgradeSubscription = async (planSlug: string) => {
 		try {
-			setLoading(true);
-			const response = await subscriptionsApi.upgradeSubscription(
+			if (!currentSubscription.value?.id) {
+				throw new Error('No current subscription found');
+			}
+			const result = await subscriptionsApi.upgradeSubscription(
 				rootStore.restApiContext,
-				currentSubscription.value?.id || '',
+				currentSubscription.value.id,
 				{ planSlug },
 			);
-			currentSubscription.value = response;
-			await fetchUsageLimits();
-			return response;
+			currentSubscription.value = result as unknown as UserSubscription;
+			return currentSubscription.value;
 		} catch (error) {
 			console.error('Failed to upgrade subscription:', error);
 			throw error;
-		} finally {
-			setLoading(false);
 		}
 	};
 
 	const cancelSubscription = async (cancelAtPeriodEnd: boolean = true) => {
 		try {
-			setLoading(true);
-			const response = await subscriptionsApi.cancelSubscription(
+			if (!currentSubscription.value?.id) {
+				throw new Error('No current subscription found');
+			}
+			const result = await subscriptionsApi.cancelSubscription(
 				rootStore.restApiContext,
-				currentSubscription.value?.id || '',
+				currentSubscription.value.id,
 				{ cancelAtPeriodEnd },
 			);
-			currentSubscription.value = response;
-			return response;
+			currentSubscription.value = result as unknown as UserSubscription;
+			return currentSubscription.value;
 		} catch (error) {
 			console.error('Failed to cancel subscription:', error);
 			throw error;
-		} finally {
-			setLoading(false);
 		}
 	};
 
-	const initialize = async () => {
-		if (!isSubscriptionEnabled.value) return;
-
+	const loadUsageData = async () => {
 		try {
-			await Promise.all([fetchPlans(), fetchCurrentSubscription(), fetchUsageLimits()]);
+			usage.value = await subscriptionsApi.getUsageLimits(rootStore.restApiContext);
 		} catch (error) {
-			console.error('Failed to initialize subscription store:', error);
+			console.error('Failed to load usage data:', error);
+		}
+	};
+
+	const loadPaymentMethods = async () => {
+		try {
+			const methods = await subscriptionsApi.getPaymentMethods(rootStore.restApiContext);
+			paymentMethods.value = methods as PaymentMethod[];
+		} catch (error) {
+			console.error('Failed to load payment methods:', error);
+		}
+	};
+
+	const loadInvoices = async () => {
+		try {
+			const invoiceList = await subscriptionsApi.getInvoices(rootStore.restApiContext);
+			invoices.value = invoiceList as unknown as Invoice[];
+		} catch (error) {
+			console.error('Failed to load invoices:', error);
 		}
 	};
 
 	return {
 		// State
-		isLoading,
-		plans,
 		currentSubscription,
-		usageLimits,
+		availablePlans,
+		paymentMethods,
+		invoices,
+		usage,
+		isLoading,
 
 		// Getters
-		isSubscriptionEnabled,
+		isSubscribed,
 		currentPlan,
-		isFreePlan,
-		isProPlan,
-		isTrialing,
-		trialDaysLeft,
-		renewalDate,
-		daysUntilRenewal,
+		trialDaysRemaining,
 
 		// Actions
-		setLoading,
-		fetchPlans,
-		fetchCurrentSubscription,
-		fetchUsageLimits,
-		createSubscription,
+		loadAvailablePlans,
+		loadCurrentSubscription,
+		getPlanById,
+		createSubscriptionSetup,
+		createRecurringSubscription,
 		upgradeSubscription,
 		cancelSubscription,
-		initialize,
+		loadUsageData,
+		loadPaymentMethods,
+		loadInvoices,
 	};
 });
