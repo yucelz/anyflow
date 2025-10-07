@@ -15,6 +15,9 @@ export class SubscriptionConfig {
 	@Env('STRIPE_ENVIRONMENT')
 	stripeEnvironment: string = '';
 
+	@Env('STRIPE_CHECKOUT_BASE_URL')
+	stripeCheckoutBaseUrl: string = '';
+
 	/** General Subscription Settings */
 	@Env('DEFAULT_CURRENCY')
 	defaultCurrency: string = '';

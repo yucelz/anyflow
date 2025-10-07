@@ -26,39 +26,39 @@ export class SubscriptionPlan extends WithTimestamps {
 	@PrimaryGeneratedColumn('uuid')
 	id: string;
 
-	@Column({ unique: true, length: 50 })
+	@Column({ type: 'varchar', unique: true, length: 50 })
 	@Index()
 	slug: string; // 'starter', 'pro', 'enterprise'
 
-	@Column({ length: 100 })
+	@Column({ type: 'varchar', length: 100 })
 	name: string;
 
-	@Column('text', { nullable: true })
+	@Column({ type: 'text', nullable: true })
 	description: string;
 
-	@Column('decimal', { precision: 10, scale: 2 })
+	@Column({ type: 'decimal', precision: 10, scale: 2 })
 	monthlyPrice: number;
 
-	@Column('decimal', { precision: 10, scale: 2 })
+	@Column({ type: 'decimal', precision: 10, scale: 2 })
 	yearlyPrice: number;
 
-	@Column('int')
+	@Column({ type: 'int' })
 	monthlyExecutionsLimit: number;
 
-	@Column('int')
+	@Column({ type: 'int' })
 	activeWorkflowsLimit: number;
 
-	@Column('int')
+	@Column({ type: 'int' })
 	credentialsLimit: number;
 
-	@Column('int')
+	@Column({ type: 'int' })
 	usersLimit: number;
 
-	@Column('int', { default: 0 })
+	@Column({ type: 'int', default: 0 })
 	storageLimit: number; // in GB
 
 	@JsonColumn({ nullable: true })
-	features: SubscriptionPlanFeatures;
+	features: SubscriptionPlanFeatures | null;
 
 	@Column({ type: 'boolean', default: true })
 	isActive: boolean;
@@ -71,12 +71,6 @@ export class SubscriptionPlan extends WithTimestamps {
 
 	@Column({ type: 'int', default: 14 })
 	trialDays: number;
-
-	@Column({ type: 'varchar', length: 255, nullable: true })
-	PriceIdMonthly: string;
-
-	@Column({ type: 'varchar', length: 255, nullable: true })
-	PriceIdYearly: string;
 
 	@OneToMany('UserSubscription', 'plan')
 	subscriptions: UserSubscription[];

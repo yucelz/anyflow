@@ -3,23 +3,24 @@ import { Logger } from '@n8n/backend-common';
 import { SubscriptionConfig } from '@n8n/config';
 import { SubscriptionPlanRepository, UserSubscriptionRepository } from '@n8n/db';
 
-import { IPaymentService } from './payment/payment-service.interface';
 import { StripePaymentService } from './payment/stripe-payment.service';
+import {
+	resolveStripePriceId,
+	calculatePlanAmount,
+	buildSubscriptionData,
+	getCheckoutBaseUrl,
+	parseUserName,
+} from '../subscription.utils';
 
 @Service()
 export class SubscriptionService {
-	private paymentService: IPaymentService;
-
 	constructor(
 		private logger: Logger,
 		private subscriptionConfig: SubscriptionConfig,
 		private subscriptionPlanRepository: SubscriptionPlanRepository,
 		private userSubscriptionRepository: UserSubscriptionRepository,
 		private stripePaymentService: StripePaymentService,
-	) {
-		// Use Stripe as the payment service
-		this.paymentService = this.stripePaymentService;
-	}
+	) {}
 
 	async getAvailablePlans() {
 		return await this.subscriptionPlanRepository.findAllActive();
@@ -79,81 +80,50 @@ export class SubscriptionService {
 				throw new Error('Payment method is required for paid plans');
 			}
 
-			// Create customer in payment provider
-			const customer = await this.paymentService.createCustomer({
-				id: userId,
-				email: userEmail,
-				firstName: userName?.split(' ')[0],
-				lastName: userName?.split(' ').slice(1).join(' '),
-			});
-			const customerId = customer.id;
+			// Parse user name for customer creation
+			const { firstName, lastName } = parseUserName(userName);
 
-			// Calculate price based on billing cycle
-			const amount = billingCycle === 'yearly' ? plan.yearlyPrice : plan.monthlyPrice;
+			// Create or get Stripe customer
+			const customerId = await this.stripePaymentService.getOrCreateStripeCustomer(
+				userId,
+				userEmail,
+				firstName,
+				lastName,
+			);
 
-			// Get the actual Stripe price ID from the plan
-			const stripePriceId = billingCycle === 'yearly' ? plan.PriceIdYearly : plan.PriceIdMonthly;
+			// Calculate price and resolve Stripe price ID
+			const amount = calculatePlanAmount(plan, billingCycle);
+			const stripePriceId = resolveStripePriceId(plan, billingCycle);
 
-			if (!stripePriceId) {
-				throw new Error(
-					`No Stripe price ID configured for plan '${plan.slug}' with ${billingCycle} billing`,
-				);
-			}
-
-			// Create subscription in payment provider
-			const providerSubscription = await this.paymentService.createSubscription({
+			// Create subscription in Stripe
+			const providerSubscription = await this.stripePaymentService.createStripeSubscription({
 				customerId,
-				priceId: stripePriceId, // Use actual Stripe price ID
+				priceId: stripePriceId,
 				paymentMethodId,
 				trialDays: plan.trialDays,
 			});
 
-			// Helper function to safely convert dates
-			const safeDateConversion = (date: Date | undefined): Date | undefined => {
-				return date && !isNaN(date.getTime()) ? date : undefined;
-			};
-
-			// Helper function to calculate proper period end based on billing cycle
-			const calculatePeriodEnd = (startDate: Date, cycle: 'monthly' | 'yearly'): Date => {
-				const periodStart = new Date(startDate);
-				if (cycle === 'yearly') {
-					periodStart.setFullYear(periodStart.getFullYear() + 1);
-				} else {
-					// Monthly billing - add 1 month
-					periodStart.setMonth(periodStart.getMonth() + 1);
-				}
-				return periodStart;
-			};
-
-			const currentPeriodStart =
-				safeDateConversion(providerSubscription.currentPeriodStart) || new Date();
-			const currentPeriodEnd =
-				safeDateConversion(providerSubscription.currentPeriodEnd) ||
-				calculatePeriodEnd(currentPeriodStart, billingCycle);
-
-			console.log(
-				`🔍 DEBUG createSubscription - billingCycle: ${billingCycle}, currentPeriodStart: ${currentPeriodStart}, currentPeriodEnd: ${currentPeriodEnd}`,
-			);
-
-			// Create subscription record in database
-			const subscription = this.userSubscriptionRepository.create({
+			// Build subscription data using utility function
+			const subscriptionData = buildSubscriptionData({
 				userId,
 				planId: plan.id,
-				status: providerSubscription.status as any,
+				stripeSubscription: providerSubscription,
 				billingCycle,
 				amount,
-				currency: 'USD',
-				currentPeriodStart,
-				currentPeriodEnd,
-				trialStart: safeDateConversion(providerSubscription.trialStart),
-				trialEnd: safeDateConversion(providerSubscription.trialEnd),
-				stripeSubscriptionId: providerSubscription.id,
-				stripeCustomerId: customerId,
-				metadata: {
-					createdAt: new Date().toISOString(),
-				},
+				customerId,
 			});
 
+			// Add additional metadata
+			const subscriptionWithMetadata = {
+				...subscriptionData,
+				metadata: {
+					...subscriptionData.metadata,
+					createdAt: new Date().toISOString(),
+				},
+			};
+
+			// Save to database
+			const subscription = this.userSubscriptionRepository.create(subscriptionWithMetadata);
 			const savedSubscription = await this.userSubscriptionRepository.save(subscription);
 
 			this.logger.info(`Paid subscription created for user ${userId}`, {
@@ -226,30 +196,20 @@ export class SubscriptionService {
 		}
 
 		try {
-			// Get the actual Stripe price ID for the new plan
-			const newStripePriceId =
-				currentSubscription.billingCycle === 'yearly'
-					? newPlan.PriceIdYearly
-					: newPlan.PriceIdMonthly;
-
-			if (!newStripePriceId) {
-				throw new Error(
-					`No Stripe price ID configured for plan '${newPlan.slug}' with ${currentSubscription.billingCycle} billing`,
-				);
-			}
+			// Resolve Stripe price ID for the new plan
+			const newStripePriceId = resolveStripePriceId(newPlan, currentSubscription.billingCycle);
 
 			const stripeSubscriptionId = currentSubscription.metadata?.stripeSubscriptionId as string;
 
 			if (stripeSubscriptionId) {
-				await this.paymentService.updateSubscription(stripeSubscriptionId, {
+				await this.stripePaymentService.updateSubscription(stripeSubscriptionId, {
 					priceId: newStripePriceId,
 				});
 			}
 
-			// Update subscription record in database
+			// Update subscription record
 			currentSubscription.planId = newPlan.id;
-			currentSubscription.amount =
-				currentSubscription.billingCycle === 'yearly' ? newPlan.yearlyPrice : newPlan.monthlyPrice;
+			currentSubscription.amount = calculatePlanAmount(newPlan, currentSubscription.billingCycle);
 
 			const updatedSubscription = await this.userSubscriptionRepository.save(currentSubscription);
 
@@ -276,7 +236,7 @@ export class SubscriptionService {
 			// Cancel subscription in payment provider
 			const stripeSubscriptionId = subscription.metadata?.stripeSubscriptionId as string;
 			if (stripeSubscriptionId) {
-				await this.paymentService.cancelSubscription(stripeSubscriptionId, cancelAtPeriodEnd);
+				await this.stripePaymentService.cancelSubscription(stripeSubscriptionId, cancelAtPeriodEnd);
 			}
 
 			// Update subscription record in database
@@ -314,20 +274,14 @@ export class SubscriptionService {
 			throw new Error('Plan not found');
 		}
 
-		// Get the Stripe price ID based on billing cycle
-		const stripePriceId = billingCycle === 'yearly' ? plan.PriceIdYearly : plan.PriceIdMonthly;
-
-		if (!stripePriceId) {
-			throw new Error(
-				`No Stripe price ID configured for plan '${plan.slug}' with ${billingCycle} billing`,
-			);
-		}
+		// Resolve Stripe price ID
+		const stripePriceId = resolveStripePriceId(plan, billingCycle);
 
 		// Create or get Stripe customer
-		const customerId = await this.getOrCreateStripeCustomer(userId, userEmail);
+		const customerId = await this.stripePaymentService.getOrCreateStripeCustomer(userId, userEmail);
 
 		// Create setup intent for collecting payment method
-		const setupIntent = await this.paymentService.createSetupIntent({
+		const setupIntent = await this.stripePaymentService.createSetupIntent({
 			customerId,
 			metadata: {
 				userId,
@@ -342,7 +296,7 @@ export class SubscriptionService {
 			customerId,
 			stripePriceId,
 			planName: plan.name,
-			amount: billingCycle === 'yearly' ? plan.yearlyPrice : plan.monthlyPrice,
+			amount: calculatePlanAmount(plan, billingCycle),
 		};
 	}
 
@@ -365,24 +319,18 @@ export class SubscriptionService {
 			throw new Error('User already has an active subscription');
 		}
 
-		// Get the Stripe price ID based on billing cycle
-		const stripePriceId = billingCycle === 'yearly' ? plan.PriceIdYearly : plan.PriceIdMonthly;
-
-		if (!stripePriceId) {
-			throw new Error(
-				`No Stripe price ID configured for plan '${plan.slug}' with ${billingCycle} billing`,
-			);
-		}
+		// Resolve Stripe price ID
+		const stripePriceId = resolveStripePriceId(plan, billingCycle);
 
 		try {
 			// Get or create Stripe customer
-			const customerId = await this.getOrCreateStripeCustomer(userId, '');
+			const customerId = await this.stripePaymentService.getOrCreateStripeCustomer(userId, '');
 
 			// Attach payment method to customer
-			await this.paymentService.attachPaymentMethod(paymentMethodId, customerId);
+			await this.stripePaymentService.attachPaymentMethod(paymentMethodId, customerId);
 
 			// Create recurring subscription in Stripe
-			const stripeSubscription = await this.paymentService.createSubscription({
+			const stripeSubscription = await this.stripePaymentService.createStripeSubscription({
 				customerId,
 				priceId: stripePriceId,
 				paymentMethodId,
@@ -393,64 +341,16 @@ export class SubscriptionService {
 				},
 			});
 
-			// Create subscription record in database
-			const amount = billingCycle === 'yearly' ? plan.yearlyPrice : plan.monthlyPrice;
-
-			// Helper function to safely convert timestamps to dates
-			const safeTimestampToDate = (timestamp: number | undefined): Date | undefined => {
-				return timestamp ? new Date(timestamp * 1000) : undefined;
-			};
-
-			const safeDateConversion = (date: Date | undefined): Date | undefined => {
-				return date && !isNaN(date.getTime()) ? date : undefined;
-			};
-
-			// Helper function to calculate proper period end based on billing cycle
-			const calculatePeriodEnd = (startDate: Date, cycle: 'monthly' | 'yearly'): Date => {
-				const periodStart = new Date(startDate);
-				if (cycle === 'yearly') {
-					periodStart.setFullYear(periodStart.getFullYear() + 1);
-				} else {
-					// Monthly billing - add 1 month
-					periodStart.setMonth(periodStart.getMonth() + 1);
-				}
-				return periodStart;
-			};
-
-			const currentPeriodStart = stripeSubscription.current_period_start
-				? safeTimestampToDate(stripeSubscription.current_period_start) || new Date()
-				: safeDateConversion(stripeSubscription.currentPeriodStart) || new Date();
-
-			const currentPeriodEnd = stripeSubscription.current_period_end
-				? safeTimestampToDate(stripeSubscription.current_period_end) ||
-					calculatePeriodEnd(currentPeriodStart, billingCycle)
-				: safeDateConversion(stripeSubscription.currentPeriodEnd) ||
-					calculatePeriodEnd(currentPeriodStart, billingCycle);
-
-			console.log(
-				`🔍 DEBUG createRecurringSubscription - billingCycle: ${billingCycle}, currentPeriodStart: ${currentPeriodStart}, currentPeriodEnd: ${currentPeriodEnd}`,
-			);
-
-			const subscriptionData = {
+			// Calculate amount and build subscription data
+			const amount = calculatePlanAmount(plan, billingCycle);
+			const subscriptionData = buildSubscriptionData({
 				userId,
 				planId: plan.id,
-				status: stripeSubscription.status as any,
+				stripeSubscription,
 				billingCycle,
 				amount,
-				currency: 'USD' as const,
-				currentPeriodStart,
-				currentPeriodEnd,
-				trialStart: stripeSubscription.trial_start
-					? safeTimestampToDate(stripeSubscription.trial_start)
-					: safeDateConversion(stripeSubscription.trialStart),
-				trialEnd: stripeSubscription.trial_end
-					? safeTimestampToDate(stripeSubscription.trial_end)
-					: safeDateConversion(stripeSubscription.trialEnd),
-				metadata: {
-					stripeSubscriptionId: stripeSubscription.id,
-					stripeCustomerId: customerId,
-				},
-			};
+				customerId,
+			});
 
 			const savedSubscription = await this.userSubscriptionRepository.save(subscriptionData);
 
@@ -493,35 +393,75 @@ export class SubscriptionService {
 		};
 	}
 
-	private async getOrCreateStripeCustomer(userId: string, email: string): Promise<string> {
-		// Check if user already has a Stripe customer ID
-		const existingSubscription = await this.userSubscriptionRepository.findByUserId(userId);
-
-		if (existingSubscription?.metadata?.stripeCustomerId) {
-			return existingSubscription.metadata.stripeCustomerId as string;
+	async createPaymentLinkForPlan(params: {
+		planId: string;
+		billingCycle: 'monthly' | 'yearly';
+		userId: string;
+	}): Promise<{ paymentLinkId: string; url: string }> {
+		const plan = await this.getPlanById(params.planId);
+		if (!plan) {
+			throw new Error('Plan not found');
 		}
 
-		// Create new Stripe customer
-		const customer = await this.paymentService.createCustomer({
-			id: userId,
-			email,
+		// Resolve Stripe price ID
+		const stripePriceId = resolveStripePriceId(plan, params.billingCycle);
+		const baseUrl = getCheckoutBaseUrl(this.subscriptionConfig.stripeCheckoutBaseUrl);
+
+		// Create payment link using Stripe service
+		const paymentLink = await this.stripePaymentService.createPaymentLink({
+			priceId: stripePriceId,
+			successUrl: `${baseUrl}/success`,
+			trialDays: plan.trialDays || 0,
+			allowPromotionCodes: true,
+			collectBillingAddress: true,
+			metadata: {
+				planId: params.planId,
+				billingCycle: params.billingCycle,
+				userId: params.userId,
+				planName: plan.name,
+			},
 		});
 
-		return customer.id;
+		this.logger.info(`Payment link created for plan ${params.planId}`, {
+			paymentLinkId: paymentLink.id,
+			userId: params.userId,
+			billingCycle: params.billingCycle,
+		});
+
+		return {
+			paymentLinkId: paymentLink.id,
+			url: paymentLink.url,
+		};
+	}
+
+	async createCheckoutSession(params: {
+		priceId: string;
+		userId?: string;
+		planId?: string;
+		billingCycle?: 'monthly' | 'yearly';
+	}): Promise<{ id: string; url: string }> {
+		return await this.stripePaymentService.createCheckoutSession({
+			priceId: params.priceId,
+			userId: params.userId,
+			planId: params.planId,
+			billingCycle: params.billingCycle,
+		});
 	}
 
 	async handleWebhook(provider: string, payload: any, signature: string) {
 		try {
 			// Verify and parse webhook
-			const webhookData = await this.paymentService.handleWebhook(payload, signature);
+			const webhookData = await this.stripePaymentService.handleWebhook(payload, signature);
 
-			this.logger.info(`Received webhook from ${provider}`, {
+			this.logger.info(`Processing ${provider} webhook`, {
 				type: webhookData.type,
-				data: webhookData.data,
 			});
 
 			// Handle different Stripe webhook events
 			switch (webhookData.type) {
+				case 'checkout.session.completed':
+					await this.handleCheckoutSessionCompleted(webhookData.data.object);
+					break;
 				case 'customer.subscription.created':
 					await this.handleSubscriptionCreated(webhookData.data);
 					break;
@@ -549,6 +489,34 @@ export class SubscriptionService {
 			this.logger.error('Failed to handle webhook:', error);
 			throw error;
 		}
+	}
+
+	private async handleCheckoutSessionCompleted(session: any): Promise<void> {
+		const userId = session.metadata?.userId;
+		const planId = session.metadata?.planId;
+		const billingCycle = session.metadata?.billingCycle;
+
+		if (!userId || !planId || !billingCycle) {
+			this.logger.warn('Missing metadata in checkout session', { sessionId: session.id });
+			return;
+		}
+
+		// Check if user already has a subscription
+		const existingSubscription = await this.userSubscriptionRepository.findActiveByUserId(userId);
+		if (existingSubscription) {
+			this.logger.warn('User already has an active subscription', {
+				userId,
+				sessionId: session.id,
+			});
+			return;
+		}
+
+		this.logger.info('Checkout session completed', {
+			userId,
+			planId,
+			billingCycle,
+			sessionId: session.id,
+		});
 	}
 
 	private async handleSubscriptionCreated(data: any) {

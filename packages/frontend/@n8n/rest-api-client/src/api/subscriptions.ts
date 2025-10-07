@@ -161,4 +161,23 @@ export const subscriptionsApi = {
 	async getInvoices(context: IRestApiContext): Promise<IInvoice[]> {
 		return await makeRestApiRequest(context, 'GET', '/billing/invoices');
 	},
+
+	async createPaymentLink(
+		context: IRestApiContext,
+		params: {
+			planId: string;
+			billingCycle: 'monthly' | 'yearly';
+		},
+	): Promise<{ paymentLinkId: string; url: string }> {
+		return await makeRestApiRequest(context, 'POST', '/subscriptions/payment-link', params);
+	},
+
+	async createCheckoutSession(
+		context: IRestApiContext,
+		params: {
+			priceId: string;
+		},
+	): Promise<{ url: string }> {
+		return await makeRestApiRequest(context, 'POST', '/create-checkout-session', params);
+	},
 };

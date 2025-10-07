@@ -431,6 +431,93 @@ export class SubscriptionController {
 		}
 	}
 
+	@Post('/payment-link')
+	async createPaymentLink(req: SubscriptionRequest.CreatePaymentLink, res: Response) {
+		const { planId, billingCycle } = req.body;
+		const userId = req.user.id;
+
+		// Input validation
+		if (!planId) {
+			const errorDetails = this.handleError(
+				new ValidationError('Plan ID is required', 'planId'),
+				'createPaymentLink',
+			);
+			return res.status(errorDetails.status).json({
+				error: errorDetails.message,
+				code: errorDetails.code,
+			});
+		}
+
+		if (!billingCycle || !['monthly', 'yearly'].includes(billingCycle)) {
+			const errorDetails = this.handleError(
+				new ValidationError('Invalid billing cycle. Must be monthly or yearly', 'billingCycle'),
+				'createPaymentLink',
+			);
+			return res.status(errorDetails.status).json({
+				error: errorDetails.message,
+				code: errorDetails.code,
+			});
+		}
+
+		try {
+			const paymentLink = await this.subscriptionService.createPaymentLinkForPlan({
+				planId,
+				billingCycle,
+				userId,
+			});
+
+			this.logger.info(`Payment link created successfully for user ${userId}`, {
+				planId,
+				billingCycle,
+				paymentLinkId: paymentLink.paymentLinkId,
+			});
+
+			return res.json(paymentLink);
+		} catch (error) {
+			const errorDetails = this.handleError(error, 'createPaymentLink');
+			return res.status(errorDetails.status).json({
+				error: errorDetails.message,
+				code: errorDetails.code,
+			});
+		}
+	}
+
+	@Post('/create-checkout-session')
+	async createCheckoutSession(req: SubscriptionRequest.CreateCheckout, res: Response) {
+		const { priceId } = req.body;
+
+		// Input validation
+		if (!priceId) {
+			const errorDetails = this.handleError(
+				new ValidationError('Price ID is required', 'priceId'),
+				'createCheckoutSession',
+			);
+			return res.status(errorDetails.status).json({
+				error: errorDetails.message,
+				code: errorDetails.code,
+			});
+		}
+
+		try {
+			const checkoutSession = await this.subscriptionService.createCheckoutSession({
+				priceId,
+			});
+
+			this.logger.info('Checkout session created successfully', {
+				priceId,
+				sessionId: checkoutSession.id,
+			});
+
+			return res.json({ url: checkoutSession.url });
+		} catch (error) {
+			const errorDetails = this.handleError(error, 'createCheckoutSession');
+			return res.status(errorDetails.status).json({
+				error: errorDetails.message,
+				code: errorDetails.code,
+			});
+		}
+	}
+
 	@Post('/webhooks/stripe')
 	async handleStripeWebhook(req: Request, res: Response) {
 		const signature = req.headers['stripe-signature'] as string;

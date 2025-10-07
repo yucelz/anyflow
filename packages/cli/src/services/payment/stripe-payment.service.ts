@@ -1,6 +1,7 @@
 import { Service } from '@n8n/di';
 import { Logger } from '@n8n/backend-common';
 import { SubscriptionConfig } from '@n8n/config';
+import { UserSubscriptionRepository } from '@n8n/db';
 
 import { IPaymentService } from './payment-service.interface';
 
@@ -11,6 +12,7 @@ export class StripePaymentService implements IPaymentService {
 	constructor(
 		private logger: Logger,
 		private subscriptionConfig: SubscriptionConfig,
+		private userSubscriptionRepository: UserSubscriptionRepository,
 	) {
 		// Initialize Stripe only if enabled and configured
 		if (this.subscriptionConfig.subscriptionEnabled && this.subscriptionConfig.stripeSecretKey) {
@@ -133,7 +135,7 @@ export class StripePaymentService implements IPaymentService {
 		}
 	}
 
-	async createSubscription(params: {
+	async createStripeSubscription(params: {
 		customerId: string;
 		priceId: string;
 		paymentMethodId?: string;
@@ -451,6 +453,281 @@ export class StripePaymentService implements IPaymentService {
 			};
 		} catch (error) {
 			this.logger.error(`Failed to retrieve Stripe customer ${customerId}:`, error);
+			throw error;
+		}
+	}
+
+	async getPaymentMethod(paymentMethodId: string): Promise<any> {
+		if (!this.stripe) {
+			throw new Error('Stripe not initialized');
+		}
+
+		try {
+			return await this.stripe.paymentMethods.retrieve(paymentMethodId);
+		} catch (error) {
+			this.logger.error(`Failed to retrieve Stripe payment method ${paymentMethodId}:`, error);
+			throw error;
+		}
+	}
+
+	async createPaymentLink(params: {
+		priceId: string;
+		quantity?: number;
+		metadata?: Record<string, string>;
+		successUrl: string;
+		cancelUrl?: string;
+		trialDays?: number;
+		allowPromotionCodes?: boolean;
+		collectBillingAddress?: boolean;
+		collectShippingAddress?: boolean;
+		invoiceCreation?: boolean;
+		customText?: {
+			shipping_address?: { message: string };
+			submit?: { message: string };
+		};
+	}): Promise<{ id: string; url: string }> {
+		if (!this.stripe) {
+			throw new Error('Stripe not initialized');
+		}
+
+		try {
+			const paymentLinkData: any = {
+				line_items: [
+					{
+						price: params.priceId,
+						quantity: params.quantity || 1,
+					},
+				],
+				after_completion: {
+					type: 'redirect',
+					redirect: {
+						url: params.successUrl,
+					},
+				},
+				metadata: params.metadata || {},
+			};
+
+			// Add optional features based on Stripe Payment Links API
+			if (params.allowPromotionCodes !== undefined) {
+				paymentLinkData.allow_promotion_codes = params.allowPromotionCodes;
+			}
+
+			if (params.collectBillingAddress !== undefined) {
+				paymentLinkData.billing_address_collection = params.collectBillingAddress
+					? 'required'
+					: 'auto';
+			}
+
+			if (params.collectShippingAddress !== undefined) {
+				paymentLinkData.shipping_address_collection = {
+					allowed_countries: [
+						'US',
+						'GB',
+						'CA',
+						'AU',
+						'DE',
+						'FR',
+						'IT',
+						'ES',
+						'NL',
+						'BE',
+						'AT',
+						'CH',
+						'SE',
+						'NO',
+						'DK',
+						'FI',
+					],
+				};
+			}
+
+			if (params.customText) {
+				paymentLinkData.custom_text = params.customText;
+			}
+
+			if (params.invoiceCreation) {
+				paymentLinkData.invoice_creation = {
+					enabled: true,
+				};
+			}
+
+			// Add subscription configuration for recurring prices
+			if (params.trialDays && params.trialDays > 0) {
+				paymentLinkData.subscription_data = {
+					trial_period_days: params.trialDays,
+				};
+			}
+
+			const paymentLink = await this.stripe.paymentLinks.create(paymentLinkData);
+
+			return {
+				id: paymentLink.id,
+				url: paymentLink.url,
+			};
+		} catch (error) {
+			this.logger.error('Failed to create Stripe payment link:', error);
+			throw error;
+		}
+	}
+
+	async updatePaymentLink(
+		linkId: string,
+		params: {
+			active?: boolean;
+			metadata?: Record<string, string>;
+		},
+	): Promise<void> {
+		if (!this.stripe) {
+			throw new Error('Stripe not initialized');
+		}
+
+		try {
+			await this.stripe.paymentLinks.update(linkId, params);
+		} catch (error) {
+			this.logger.error(`Failed to update Stripe payment link ${linkId}:`, error);
+			throw error;
+		}
+	}
+
+	async retrievePaymentLink(linkId: string): Promise<any> {
+		if (!this.stripe) {
+			throw new Error('Stripe not initialized');
+		}
+
+		try {
+			return await this.stripe.paymentLinks.retrieve(linkId);
+		} catch (error) {
+			this.logger.error(`Failed to retrieve Stripe payment link ${linkId}:`, error);
+			throw error;
+		}
+	}
+
+	async listPaymentLinks(params?: {
+		limit?: number;
+		starting_after?: string;
+		ending_before?: string;
+		active?: boolean;
+	}): Promise<any> {
+		if (!this.stripe) {
+			throw new Error('Stripe not initialized');
+		}
+
+		try {
+			return await this.stripe.paymentLinks.list(params);
+		} catch (error) {
+			this.logger.error('Failed to list Stripe payment links:', error);
+			throw error;
+		}
+	}
+
+	async createCheckoutSession(params: {
+		priceId: string;
+		successUrl?: string;
+		cancelUrl?: string;
+		metadata?: Record<string, string>;
+		mode?: 'payment' | 'subscription' | 'setup';
+		customerId?: string;
+		trialPeriodDays?: number;
+		allowPromotionCodes?: boolean;
+		billingAddressCollection?: 'required' | 'auto';
+		userId?: string;
+		planId?: string;
+		billingCycle?: 'monthly' | 'yearly';
+	}): Promise<{ id: string; url: string }> {
+		if (!this.stripe) {
+			throw new Error('Stripe not initialized');
+		}
+
+		try {
+			const baseUrl =
+				this.subscriptionConfig.stripeCheckoutBaseUrl || 'https://checkout.stripe.com';
+
+			const checkoutData: any = {
+				line_items: [
+					{
+						price: params.priceId,
+						quantity: 1,
+					},
+				],
+				mode: params.mode || 'subscription',
+				success_url: params.successUrl || `${baseUrl}/success`,
+				cancel_url: params.cancelUrl || `${baseUrl}/cancel`,
+				metadata: {
+					...params.metadata,
+					...(params.userId && { userId: params.userId }),
+					...(params.planId && { planId: params.planId }),
+					...(params.billingCycle && { billingCycle: params.billingCycle }),
+				},
+			};
+
+			// Add customer if provided
+			if (params.customerId) {
+				checkoutData.customer = params.customerId;
+			}
+
+			// Add trial period for subscriptions
+			if (params.mode === 'subscription' && params.trialPeriodDays && params.trialPeriodDays > 0) {
+				checkoutData.subscription_data = {
+					trial_period_days: params.trialPeriodDays,
+				};
+			}
+
+			// Add promotion codes support - default to true for business logic
+			checkoutData.allow_promotion_codes = params.allowPromotionCodes ?? true;
+
+			// Add billing address collection - default to auto for business logic
+			checkoutData.billing_address_collection = params.billingAddressCollection || 'auto';
+
+			const session = await this.stripe.checkout.sessions.create(checkoutData);
+
+			this.logger.info(`Checkout session created: ${session.id}`, {
+				priceId: params.priceId,
+				userId: params.userId,
+				planId: params.planId,
+			});
+
+			return {
+				id: session.id,
+				url: session.url,
+			};
+		} catch (error) {
+			this.logger.error('Failed to create Stripe checkout session:', error);
+			throw new Error('Failed to create checkout session');
+		}
+	}
+
+	/**
+	 * Get existing Stripe customer ID from database or create new one
+	 */
+	async getOrCreateStripeCustomer(
+		userId: string,
+		email: string,
+		firstName?: string,
+		lastName?: string,
+	): Promise<string> {
+		try {
+			// Check if user already has a Stripe customer ID
+			const existingSubscription = await this.userSubscriptionRepository.findByUserId(userId);
+
+			if (existingSubscription?.metadata?.stripeCustomerId) {
+				return existingSubscription.metadata.stripeCustomerId as string;
+			}
+
+			// Create new Stripe customer
+			const customer = await this.createCustomer({
+				id: userId,
+				email,
+				firstName,
+				lastName,
+			});
+
+			this.logger.info(`Stripe customer created for user ${userId}`, {
+				customerId: customer.id,
+			});
+
+			return customer.id;
+		} catch (error) {
+			this.logger.error(`Failed to get or create Stripe customer for user ${userId}:`, error);
 			throw error;
 		}
 	}

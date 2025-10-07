@@ -30,19 +30,20 @@ export class UserSubscription extends WithTimestamps {
 	plan: SubscriptionPlan;
 
 	@Column({ type: 'uuid' })
+	@Index()
 	planId: string;
 
-	@Column()
+	@Column({ type: 'varchar', length: 20 })
 	@Index()
 	status: 'active' | 'canceled' | 'past_due' | 'unpaid' | 'trialing' | 'paused';
 
-	@Column()
+	@Column({ type: 'varchar', length: 10 })
 	billingCycle: 'monthly' | 'yearly';
 
-	@Column('decimal', { precision: 10, scale: 2 })
+	@Column({ type: 'decimal', precision: 10, scale: 2 })
 	amount: number;
 
-	@Column({ length: 3 })
+	@Column({ type: 'varchar', length: 3 })
 	currency: string; // 'USD', 'EUR', etc.
 
 	@Column({ type: 'timestamp' })
@@ -63,27 +64,17 @@ export class UserSubscription extends WithTimestamps {
 	@Column({ type: 'boolean', default: false })
 	cancelAtPeriodEnd: boolean;
 
-	// Payment processor specific data
-	@Column({ nullable: true })
-	stripeSubscriptionId: string;
+	// Stripe integration fields
+	@Column({ type: 'varchar', length: 255, nullable: true })
+	@Index()
+	paymentSubscriptionId: string;
 
-	@Column({ nullable: true })
-	paypalSubscriptionId: string;
-
-	@Column({ nullable: true })
-	squareSubscriptionId: string;
-
-	@Column({ nullable: true })
-	stripeCustomerId: string;
-
-	@Column({ nullable: true })
-	paypalCustomerId: string;
-
-	@Column({ nullable: true })
-	squareCustomerId: string;
+	@Column({ type: 'varchar', length: 255, nullable: true })
+	@Index()
+	paymentCustomerId: string;
 
 	@JsonColumn({ nullable: true })
-	metadata: Record<string, any>;
+	metadata: Record<string, any> | null;
 
 	@OneToMany('Invoice', 'subscription')
 	invoices: Invoice[];

@@ -13,7 +13,6 @@ import N8nInfoTip from '@n8n/design-system/components/N8nInfoTip';
 import { COMMUNITY_PLUS_ENROLLMENT_MODAL } from '@/constants';
 import { useUsersStore } from '@/stores/users.store';
 import { getResourcePermissions } from '@n8n/permissions';
-import { usePageRedirectionHelper } from '@/composables/usePageRedirectionHelper';
 import { I18nT } from 'vue-i18n';
 
 const usageStore = useUsageStore();
@@ -23,13 +22,9 @@ const uiStore = useUIStore();
 const usersStore = useUsersStore();
 const toast = useToast();
 const documentTitle = useDocumentTitle();
-const pageRedirectionHelper = usePageRedirectionHelper();
 
 const queryParamCallback = ref<string>(
 	`callback=${encodeURIComponent(`${window.location.origin}${window.location.pathname}`)}`,
-);
-const viewPlansUrl = computed(
-	() => `${usageStore.viewPlansUrl}&${queryParamCallback.value}&source=usage_page`,
 );
 const managePlanUrl = computed(() => `${usageStore.managePlanUrl}&${queryParamCallback.value}`);
 const activationKeyModal = ref(false);
@@ -132,7 +127,7 @@ const onAddActivationKey = () => {
 };
 
 const onViewPlans = () => {
-	void pageRedirectionHelper.goToUpgrade('usage_page', 'open');
+	void router.push({ name: 'PricingPlans' });
 	sendUsageTelemetry('view_plans');
 };
 
@@ -247,10 +242,8 @@ const openCommunityRegisterModal = () => {
 						locale.baseText('settings.usageAndPlan.button.manage')
 					}}</a>
 				</n8n-button>
-				<n8n-button v-else size="large" @click.prevent="onViewPlans">
-					<a :href="viewPlansUrl" target="_blank">{{
-						locale.baseText('settings.usageAndPlan.button.plans')
-					}}</a>
+				<n8n-button v-else size="large" @click="onViewPlans">
+					{{ locale.baseText('settings.usageAndPlan.button.plans') }}
 				</n8n-button>
 			</div>
 

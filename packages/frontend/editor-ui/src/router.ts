@@ -73,6 +73,9 @@ const PricingPlansView = async () => await import('@/views/subscription/PricingP
 const StripeCheckoutView = async () => await import('@/views/subscription/StripeCheckout.vue');
 const SubscriptionSuccessView = async () =>
 	await import('@/views/subscription/SubscriptionSuccess.vue');
+const PaymentLinksView = async () => await import('@/views/subscription/PaymentLinks.vue');
+const PaymentLinkSuccessView = async () =>
+	await import('@/views/subscription/PaymentLinkSuccess.vue');
 
 function getTemplatesRedirect(defaultRedirect: VIEWS[keyof VIEWS]): { name: string } | false {
 	const settingsStore = useSettingsStore();
@@ -794,6 +797,34 @@ export const routes: RouteRecordRaw[] = [
 		name: VIEWS.SUBSCRIPTION_SUCCESS,
 		components: {
 			default: SubscriptionSuccessView,
+			sidebar: MainSidebar,
+		},
+		meta: {
+			middleware: ['authenticated'],
+			telemetry: {
+				pageCategory: 'subscription',
+			},
+		},
+	},
+	{
+		path: '/subscription/payment-links',
+		name: VIEWS.PAYMENT_LINKS,
+		components: {
+			default: PaymentLinksView,
+			sidebar: MainSidebar,
+		},
+		meta: {
+			middleware: ['authenticated'],
+			telemetry: {
+				pageCategory: 'subscription',
+			},
+		},
+	},
+	{
+		path: '/subscription/payment-link-success',
+		name: VIEWS.PAYMENT_LINK_SUCCESS,
+		components: {
+			default: PaymentLinkSuccessView,
 			sidebar: MainSidebar,
 		},
 		meta: {

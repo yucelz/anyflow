@@ -611,6 +611,8 @@ export const enum VIEWS {
 	PRICING_PLANS = 'PricingPlans',
 	SUBSCRIPTION_CHECKOUT = 'SubscriptionCheckout',
 	SUBSCRIPTION_SUCCESS = 'SubscriptionSuccess',
+	PAYMENT_LINKS = 'PaymentLinks',
+	PAYMENT_LINK_SUCCESS = 'PaymentLinkSuccess',
 }
 
 export const EDITABLE_CANVAS_VIEWS = [VIEWS.WORKFLOW, VIEWS.NEW_WORKFLOW, VIEWS.EXECUTION_DEBUG];

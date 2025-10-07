@@ -19,7 +19,7 @@ export interface IPaymentService {
 	}>;
 
 	// Subscription management
-	createSubscription(params: {
+	createStripeSubscription(params: {
 		customerId: string;
 		priceId: string;
 		paymentMethodId?: string;
@@ -93,7 +93,56 @@ export interface IPaymentService {
 		data: any;
 	}>;
 
+	// Checkout Sessions management
+	createCheckoutSession(params: {
+		priceId: string;
+		successUrl?: string;
+		cancelUrl?: string;
+		metadata?: Record<string, string>;
+		mode?: 'payment' | 'subscription' | 'setup';
+		customerId?: string;
+		trialPeriodDays?: number;
+		allowPromotionCodes?: boolean;
+		billingAddressCollection?: 'required' | 'auto';
+	}): Promise<{ id: string; url: string }>;
+
+	// Payment Links management
+	createPaymentLink(params: {
+		priceId: string;
+		quantity?: number;
+		metadata?: Record<string, string>;
+		successUrl: string;
+		cancelUrl?: string;
+		trialDays?: number;
+		allowPromotionCodes?: boolean;
+		collectBillingAddress?: boolean;
+		collectShippingAddress?: boolean;
+		invoiceCreation?: boolean;
+		customText?: {
+			shipping_address?: { message: string };
+			submit?: { message: string };
+		};
+	}): Promise<{ id: string; url: string }>;
+
+	updatePaymentLink(
+		linkId: string,
+		params: {
+			active?: boolean;
+			metadata?: Record<string, string>;
+		},
+	): Promise<void>;
+
+	retrievePaymentLink(linkId: string): Promise<any>;
+
+	listPaymentLinks(params?: {
+		limit?: number;
+		starting_after?: string;
+		ending_before?: string;
+		active?: boolean;
+	}): Promise<any>;
+
 	// Utility methods
 	getSubscription(subscriptionId: string): Promise<any>;
 	getCustomer(customerId: string): Promise<any>;
+	getPaymentMethod(paymentMethodId: string): Promise<any>;
 }

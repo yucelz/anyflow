@@ -354,6 +354,23 @@ export declare namespace SubscriptionRequest {
 			cancelAtPeriodEnd?: boolean;
 		}
 	>;
+
+	type CreatePaymentLink = AuthenticatedRequest<
+		{},
+		{},
+		{
+			planId: string;
+			billingCycle: 'monthly' | 'yearly';
+		}
+	>;
+
+	type CreateCheckout = AuthenticatedRequest<
+		{},
+		{},
+		{
+			priceId: string;
+		}
+	>;
 }
 
 // ----------------------------------

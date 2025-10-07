@@ -192,6 +192,31 @@ export const useSubscriptionStore = defineStore('subscription', () => {
 		}
 	};
 
+	const createPaymentLink = async (params: {
+		planId: string;
+		billingCycle: 'monthly' | 'yearly';
+	}): Promise<{ paymentLinkId: string; url: string }> => {
+		try {
+			const result = await subscriptionsApi.createPaymentLink(rootStore.restApiContext, params);
+			return result as { paymentLinkId: string; url: string };
+		} catch (error) {
+			console.error('Failed to create payment link:', error);
+			throw error;
+		}
+	};
+
+	const createCheckoutSession = async (params: {
+		priceId: string;
+	}): Promise<{ url: string }> => {
+		try {
+			const result = await subscriptionsApi.createCheckoutSession(rootStore.restApiContext, params);
+			return result as { url: string };
+		} catch (error) {
+			console.error('Failed to create checkout session:', error);
+			throw error;
+		}
+	};
+
 	return {
 		// State
 		currentSubscription,
@@ -217,5 +242,7 @@ export const useSubscriptionStore = defineStore('subscription', () => {
 		loadUsageData,
 		loadPaymentMethods,
 		loadInvoices,
+		createPaymentLink,
+		createCheckoutSession,
 	};
 });
