@@ -39,17 +39,21 @@
 		<!-- Plans Grid -->
 		<div v-else class="plans-grid">
 			<div
-				v-for="plan in availablePlans"
+				v-for="(plan, index) in availablePlans"
 				:key="plan.id"
 				class="plan-card"
 				:class="{
 					popular: plan.isPopular,
 					current: isCurrentPlan(plan),
-					disabled: isProcessing,
+					disabled: isProcessing || index >= availablePlans.length - 2,
+					'coming-soon': index >= availablePlans.length - 2,
 				}"
 			>
+				<!-- Coming Soon Badge -->
+				<div v-if="index >= availablePlans.length - 2" class="coming-soon-badge">Coming Soon</div>
+
 				<!-- Popular Badge -->
-				<div v-if="plan.isPopular" class="popular-badge">
+				<div v-else-if="plan.isPopular" class="popular-badge">
 					{{ plan.isPopular ? 'Most Popular' : '' }}
 				</div>
 
@@ -75,7 +79,15 @@
 				<!-- Action Button -->
 				<div class="plan-action">
 					<n8n-button
-						v-if="isCurrentPlan(plan)"
+						v-if="index >= availablePlans.length - 2"
+						:disabled="true"
+						size="large"
+						class="action-button coming-soon-button"
+					>
+						Coming Soon
+					</n8n-button>
+					<n8n-button
+						v-else-if="isCurrentPlan(plan)"
 						:disabled="true"
 						size="large"
 						:class="['action-button', { 'current-plan': true }]"
@@ -113,7 +125,9 @@
 				</div>
 
 				<!-- Trial Info -->
-				<div v-if="plan.trialDays > 0" class="trial-info">{{ plan.trialDays }}-day free trial</div>
+				<div v-if="plan.trialDays > 0 && index < availablePlans.length - 2" class="trial-info">
+					{{ plan.trialDays }}-day free trial
+				</div>
 			</div>
 		</div>
 
@@ -170,6 +184,7 @@ import { useRouter } from 'vue-router';
 import { useSubscriptionStore } from '@/stores/subscription.store';
 import { useToast } from '@/composables/useToast';
 import type { SubscriptionPlan } from '@/types/subscription';
+import { VIEWS } from '@/constants';
 import Modal from '@/components/Modal.vue';
 import PlanComparisonTable from './PlanComparisonTable.vue';
 
@@ -186,68 +201,31 @@ const selectedPlanForDowngrade = ref<SubscriptionPlan | null>(null);
 const currentSubscription = computed(() => subscriptionStore.currentSubscription);
 const hasNeverSubscribed = computed(() => !currentSubscription.value);
 const availablePlans = computed(() => {
-	console.log(
-		'🔍 DEBUG availablePlans computed - subscriptionStore.availablePlans:',
-		subscriptionStore.availablePlans,
-	);
-	console.log(
-		'🔍 DEBUG availablePlans computed - length:',
-		subscriptionStore.availablePlans?.length,
-	);
-
-	// Sort plans by sortOrder, then by price for consistent display
 	const sortedPlans = [...subscriptionStore.availablePlans].sort((a, b) => {
 		if (a.sortOrder !== b.sortOrder) {
 			return a.sortOrder - b.sortOrder;
 		}
 		return a.monthlyPrice - b.monthlyPrice;
 	});
-
-	console.log('🔍 DEBUG availablePlans computed - sortedPlans:', sortedPlans);
 	return sortedPlans;
 });
 
 onMounted(async () => {
-	console.log('🔍 DEBUG onMounted - Starting to load plans and subscription data');
 	try {
-		// Load both plans and current subscription in parallel
-		console.log('🔍 DEBUG onMounted - Calling loadAvailablePlans and loadCurrentSubscription');
 		await Promise.all([
 			subscriptionStore.loadAvailablePlans(),
 			subscriptionStore.loadCurrentSubscription(),
 		]);
 
-		console.log(
-			'🔍 DEBUG onMounted - After loading, availablePlans:',
-			subscriptionStore.availablePlans,
-		);
-		console.log(
-			'🔍 DEBUG onMounted - After loading, currentSubscription:',
-			subscriptionStore.currentSubscription,
-		);
-		console.log(
-			'🔍 DEBUG onMounted - currentSubscription with currentPeriodEnd:',
-			currentSubscription.value?.currentPeriodEnd,
-		);
-
-		// Set default billing cycle based on current subscription if exists
 		if (currentSubscription.value?.billingCycle) {
-			console.log(
-				'🔍 DEBUG onMounted - Setting billingCycle to:',
-				currentSubscription.value.billingCycle,
-			);
 			billingCycle.value = currentSubscription.value.billingCycle;
 		}
 	} catch (error) {
-		console.error('🔍 DEBUG onMounted - Error loading data:', error);
 		toast.showError(error, 'Failed to load pricing information');
 	}
 });
 
-const updatePricing = () => {
-	// This is called when billing cycle changes
-	// Could add analytics tracking here
-};
+const updatePricing = () => {};
 
 const getPlanPrice = (plan: SubscriptionPlan) => {
 	return billingCycle.value === 'yearly'
@@ -275,12 +253,10 @@ const getPlanIcon = (plan: SubscriptionPlan) => {
 };
 
 const getPlanDescription = (plan: SubscriptionPlan) => {
-	// Use the description from the database if available
 	if (plan.description) {
 		return plan.description;
 	}
 
-	// Fallback to dynamic descriptions based on plan name
 	const planName = plan.name.toLowerCase();
 	if (planName.includes('starter') || planName.includes('basic'))
 		return 'Perfect for small projects and personal use';
@@ -291,10 +267,8 @@ const getPlanDescription = (plan: SubscriptionPlan) => {
 };
 
 const getPlanFeatures = (plan: SubscriptionPlan) => {
-	console.log('🔍 DEBUG getPlanFeatures - plan:', plan);
 	const features = [];
 
-	// Core features based on plan limits
 	if (plan.monthlyExecutionsLimit === -1) {
 		features.push('Unlimited executions');
 	} else if (plan.monthlyExecutionsLimit > 0) {
@@ -314,7 +288,6 @@ const getPlanFeatures = (plan: SubscriptionPlan) => {
 		features.push(`${formatNumber(plan.usersLimit)} ${userText}`);
 	}
 
-	// Premium features from database
 	if (plan.features) {
 		if (plan.features.advancedNodes) features.push('Advanced nodes');
 		if (plan.features.prioritySupport) features.push('Priority support');
@@ -324,31 +297,26 @@ const getPlanFeatures = (plan: SubscriptionPlan) => {
 		if (plan.features.onPremise) features.push('On-premise deployment');
 	}
 
-	console.log('🔍 DEBUG getPlanFeatures - features:', features);
 	return features;
 };
 
 const isCurrentPlan = (plan: SubscriptionPlan) => {
-	console.log('Current Subscription:', currentSubscription.value);
 	return currentSubscription.value?.planId === plan.id;
 };
 
 const isUpgrade = (plan: SubscriptionPlan) => {
-	// If user has never subscribed, all paid plans are considered upgrades
 	if (hasNeverSubscribed.value) {
 		return plan.monthlyPrice > 0 || plan.yearlyPrice > 0;
 	}
 
 	if (!currentSubscription.value) return false;
 
-	// Compare plan pricing to determine if it's an upgrade
 	const currentPrice = getCurrentPlanPrice();
 	const newPrice = billingCycle.value === 'yearly' ? plan.yearlyPrice : plan.monthlyPrice * 12;
 	return newPrice > currentPrice;
 };
 
 const isDowngrade = (plan: SubscriptionPlan) => {
-	// Users who never subscribed cannot downgrade
 	if (hasNeverSubscribed.value) return false;
 
 	if (!currentSubscription.value) return false;
@@ -372,18 +340,16 @@ const selectPlan = async (plan: SubscriptionPlan) => {
 	isProcessing.value = true;
 
 	try {
-		// For users who never subscribed or need to upgrade, go to checkout
 		if (hasNeverSubscribed.value || isUpgrade(plan)) {
 			await router.push({
-				name: 'subscription-checkout',
+				name: VIEWS.SUBSCRIPTION_CHECKOUT,
 				query: {
 					planId: plan.id,
 					billingCycle: billingCycle.value,
-					planSlug: plan.slug, // Include slug for easier backend processing
+					planSlug: plan.slug,
 				},
 			});
 		} else {
-			// Handle other cases (should not normally reach here due to button logic)
 			toast.showMessage({
 				title: 'Plan selection not available',
 				message: 'Please contact support for assistance.',
@@ -391,7 +357,6 @@ const selectPlan = async (plan: SubscriptionPlan) => {
 			});
 		}
 	} catch (error) {
-		console.error('Failed to proceed to checkout:', error);
 		toast.showError(error, 'Failed to proceed to checkout');
 	} finally {
 		isProcessing.value = false;
@@ -435,71 +400,90 @@ const formatNumber = (num: number) => {
 
 <style lang="scss" scoped>
 .pricing-plans-container {
-	max-width: 1200px;
+	width: 100%;
+	max-width: 1400px;
 	margin: 0 auto;
-	padding: 2rem;
+	padding: 3rem 1rem;
+	background: linear-gradient(135deg, #f5f7fa 0%, #e8eef5 100%);
+	min-height: 100vh;
+	box-sizing: border-box;
+
+	@media (min-width: 768px) {
+		padding: 3rem 2rem;
+	}
 
 	.pricing-header {
 		text-align: center;
-		margin-bottom: 3rem;
+		margin-bottom: 4rem;
+		animation: fadeInDown 0.6s ease-out;
 
 		h1 {
-			font-size: 2.5rem;
-			font-weight: 700;
+			font-size: 3rem;
+			font-weight: 800;
 			margin-bottom: 1rem;
-			color: var(--color-text-dark);
+			background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
+			background-clip: text;
+			letter-spacing: -0.02em;
 		}
 
 		p {
-			font-size: 1.125rem;
-			color: var(--color-text-light);
-			margin-bottom: 2rem;
+			font-size: 1.25rem;
+			color: #64748b;
+			margin-bottom: 2.5rem;
+			font-weight: 400;
 		}
 	}
 
 	.billing-toggle {
 		display: inline-flex;
 		align-items: center;
-		background: var(--color-foreground-xlight);
+		background: white;
 		backdrop-filter: blur(10px);
 		border-radius: 50px;
-		padding: 0.25rem;
-		border: 1px solid var(--color-foreground-light);
+		padding: 0.375rem;
+		border: 2px solid #e2e8f0;
 		margin-bottom: 2rem;
+		box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 
 		.toggle-button {
 			position: relative;
-			padding: 0.75rem 1.5rem;
+			padding: 0.875rem 2rem;
 			border-radius: 50px;
-			transition: all 0.3s;
+			transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 			background: transparent;
 			border: none;
 			cursor: pointer;
-			font-weight: 500;
-			color: var(--color-text-light);
+			font-weight: 600;
+			color: #64748b;
+			font-size: 1rem;
 
 			&.active {
-				background: var(--color-primary);
+				background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 				color: white;
-				box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+				box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+				transform: scale(1.02);
 			}
 
 			&:hover:not(.active) {
-				color: var(--color-text-dark);
+				color: #334155;
+				background: #f8fafc;
 			}
 
 			.savings-badge {
 				position: absolute;
-				top: -2rem;
+				top: -2.5rem;
 				left: 50%;
 				transform: translateX(-50%);
-				background: var(--color-success);
+				background: linear-gradient(135deg, #10b981 0%, #059669 100%);
 				color: white;
 				font-size: 0.75rem;
-				font-weight: 600;
-				padding: 0.25rem 0.5rem;
+				font-weight: 700;
+				padding: 0.375rem 0.75rem;
 				border-radius: 50px;
 				white-space: nowrap;
+				box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 			}
 		}
 	}
@@ -507,55 +491,150 @@ const formatNumber = (num: number) => {
 	.loading-container {
 		display: flex;
 		justify-content: center;
-		padding: 4rem 0;
+		padding: 6rem 0;
 	}
 
 	.plans-grid {
 		display: grid;
 		grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-		gap: 2rem;
-		margin-bottom: 3rem;
+		gap: 1.5rem;
+		margin-bottom: 4rem;
+		animation: fadeInUp 0.8s ease-out;
+		width: 100%;
+
+		@media (min-width: 768px) {
+			gap: 2rem;
+		}
+
+		@media (min-width: 1200px) {
+			grid-template-columns: repeat(4, 1fr);
+		}
+
+		@media (min-width: 768px) and (max-width: 1199px) {
+			grid-template-columns: repeat(2, 1fr);
+		}
+
+		@media (max-width: 767px) {
+			grid-template-columns: 1fr;
+			gap: 1.5rem;
+		}
 	}
 
 	.plan-card {
-		border: 1px solid var(--color-foreground-light);
-		border-radius: 1rem;
-		padding: 2rem;
+		border: 2px solid #e2e8f0;
+		border-radius: 1.5rem;
+		padding: 1.5rem;
 		position: relative;
-		transition: all 0.3s ease;
-		background: var(--color-background-base);
+		transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+		background: white;
 		backdrop-filter: blur(10px);
+		overflow: hidden;
+		width: 100%;
+		box-sizing: border-box;
+		min-height: 600px;
+		display: flex;
+		flex-direction: column;
 
-		&:hover:not(.disabled) {
-			border-color: var(--color-primary-light);
-			transform: translateY(-4px);
-			box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+		@media (min-width: 768px) {
+			padding: 2rem;
+		}
+
+		@media (min-width: 1200px) {
+			padding: 2.5rem;
+		}
+
+		&::before {
+			content: '';
+			position: absolute;
+			top: 0;
+			left: 0;
+			right: 0;
+			height: 4px;
+			background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+			transform: scaleX(0);
+			transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+		}
+
+		&:hover:not(.disabled):not(.coming-soon) {
+			border-color: #667eea;
+			transform: translateY(-8px);
+			box-shadow: 0 24px 48px rgba(102, 126, 234, 0.2);
+
+			&::before {
+				transform: scaleX(1);
+			}
 		}
 
 		&.popular {
-			border-color: var(--color-primary);
-			background: linear-gradient(
-				135deg,
-				var(--color-primary-tint-3) 0%,
-				var(--color-background-base) 100%
-			);
-			transform: scale(1.05);
-			box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-			border-width: 2px;
+			border-color: #667eea;
+			background: linear-gradient(135deg, #faf5ff 0%, white 100%);
+			transform: scale(1.08);
+			box-shadow: 0 24px 48px rgba(102, 126, 234, 0.25);
+			border-width: 3px;
+
+			&::before {
+				transform: scaleX(1);
+				height: 6px;
+			}
 
 			&:hover {
-				transform: scale(1.05) translateY(-4px);
+				transform: scale(1.08) translateY(-8px);
+				box-shadow: 0 32px 64px rgba(102, 126, 234, 0.3);
 			}
 		}
 
 		&.current {
-			border-color: var(--color-success);
-			background-color: var(--color-success-tint-3);
+			border-color: #10b981;
+			background: linear-gradient(135deg, #f0fdf4 0%, white 100%);
+
+			&::before {
+				background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+				transform: scaleX(1);
+			}
 		}
 
-		&.disabled {
+		&.coming-soon {
+			opacity: 0.65;
+			pointer-events: none;
+			filter: grayscale(0.3);
+			background: linear-gradient(135deg, #f8fafc 0%, white 100%);
+
+			&::after {
+				content: '';
+				position: absolute;
+				top: 0;
+				left: 0;
+				right: 0;
+				bottom: 0;
+				background: repeating-linear-gradient(
+					45deg,
+					transparent,
+					transparent 10px,
+					rgba(148, 163, 184, 0.03) 10px,
+					rgba(148, 163, 184, 0.03) 20px
+				);
+				pointer-events: none;
+			}
+		}
+
+		&.disabled:not(.coming-soon) {
 			opacity: 0.6;
 			pointer-events: none;
+		}
+
+		.coming-soon-badge {
+			position: absolute;
+			top: -1rem;
+			left: 50%;
+			transform: translateX(-50%);
+			background: linear-gradient(135deg, #94a3b8 0%, #64748b 100%);
+			color: white;
+			padding: 0.5rem 1.5rem;
+			border-radius: 50px;
+			font-size: 0.875rem;
+			font-weight: 700;
+			box-shadow: 0 4px 16px rgba(100, 116, 139, 0.3);
+			z-index: 10;
 		}
 
 		.popular-badge {
@@ -563,37 +642,44 @@ const formatNumber = (num: number) => {
 			top: -1rem;
 			left: 50%;
 			transform: translateX(-50%);
-			background: linear-gradient(135deg, var(--color-warning) 0%, var(--color-warning-dark) 100%);
-			color: var(--color-text-dark);
-			padding: 0.5rem 1.5rem;
+			background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+			color: white;
+			padding: 0.5rem 1.75rem;
 			border-radius: 50px;
 			font-size: 0.875rem;
 			font-weight: 700;
-			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+			box-shadow: 0 4px 16px rgba(245, 158, 11, 0.4);
+			z-index: 10;
 		}
 	}
 
 	.plan-header {
 		text-align: center;
-		margin-bottom: 2rem;
+		margin-bottom: 2.5rem;
 
 		.plan-icon {
 			display: inline-flex;
 			align-items: center;
 			justify-content: center;
-			width: 4rem;
-			height: 4rem;
-			border-radius: 1rem;
-			margin-bottom: 1rem;
-			background: var(--color-primary-tint-3);
+			width: 5rem;
+			height: 5rem;
+			border-radius: 1.5rem;
+			margin-bottom: 1.5rem;
+			background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%);
+			transition: all 0.3s ease;
+
+			.plan-card:hover & {
+				transform: scale(1.1) rotate(5deg);
+			}
 
 			.popular & {
-				background: rgba(255, 255, 255, 0.2);
+				background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+				box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
 			}
 
 			.n8n-icon {
-				font-size: 2rem;
-				color: var(--color-primary);
+				font-size: 2.5rem;
+				color: #667eea;
 
 				&.popular-icon {
 					color: white;
@@ -602,109 +688,125 @@ const formatNumber = (num: number) => {
 		}
 
 		h3 {
-			font-size: 1.5rem;
+			font-size: 1.75rem;
 			font-weight: 700;
-			margin-bottom: 0.5rem;
-			color: var(--color-text-dark);
+			margin-bottom: 0.75rem;
+			color: #1e293b;
 
 			.popular & {
-				color: var(--color-primary);
+				color: #667eea;
 			}
 		}
 
 		.plan-description {
-			font-size: 0.875rem;
-			color: var(--color-text-light);
+			font-size: 0.9375rem;
+			color: #64748b;
 			margin-bottom: 0;
+			line-height: 1.6;
 
 			.popular & {
-				color: var(--color-text-base);
+				color: #475569;
+				font-weight: 500;
 			}
 		}
 	}
 
 	.plan-pricing {
 		text-align: center;
-		margin-bottom: 2rem;
+		margin-bottom: 2.5rem;
+		padding: 1.5rem 0;
+		background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+		border-radius: 1rem;
+
+		.popular & {
+			background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%);
+		}
 
 		.price-display {
 			display: flex;
 			align-items: baseline;
 			justify-content: center;
-			gap: 0.25rem;
-			margin-bottom: 0.5rem;
+			gap: 0.375rem;
+			margin-bottom: 0.75rem;
 
 			.currency {
-				font-size: 1.5rem;
-				color: var(--color-text-light);
+				font-size: 1.75rem;
+				color: #64748b;
+				font-weight: 600;
 
 				.popular & {
-					color: var(--color-primary);
+					color: #667eea;
 				}
 			}
 
 			.amount {
-				font-size: 3rem;
-				font-weight: 700;
-				color: var(--color-primary);
+				font-size: 3.5rem;
+				font-weight: 800;
+				color: #667eea;
+				letter-spacing: -0.02em;
 
 				.popular & {
-					color: var(--color-primary-dark);
+					color: #5b21b6;
 				}
 			}
 
 			.period {
-				font-size: 1rem;
-				color: var(--color-text-light);
+				font-size: 1.125rem;
+				color: #64748b;
+				font-weight: 500;
 
 				.popular & {
-					color: var(--color-text-base);
+					color: #475569;
 				}
 			}
 		}
 
 		.savings {
-			color: var(--color-success);
-			font-size: 0.875rem;
-			font-weight: 500;
+			color: #10b981;
+			font-size: 0.9375rem;
+			font-weight: 600;
 
 			.popular & {
-				color: var(--color-success-dark);
+				color: #059669;
 			}
 		}
 	}
 
 	.plan-features {
 		margin-bottom: 2rem;
+		flex-grow: 1;
 
 		.feature-item {
 			display: flex;
 			align-items: flex-start;
-			gap: 0.75rem;
-			padding: 0.75rem 0;
+			gap: 0.875rem;
+			padding: 0.875rem 0;
+			transition: all 0.2s ease;
 
-			&:last-child {
-				border-bottom: none;
+			&:hover {
+				padding-left: 0.5rem;
 			}
 
 			.check-icon {
-				color: var(--color-success);
-				width: 1.25rem;
-				height: 1.25rem;
+				color: #10b981;
+				width: 1.375rem;
+				height: 1.375rem;
 				flex-shrink: 0;
 				margin-top: 0.125rem;
 
 				.popular & {
-					color: var(--color-success-dark);
+					color: #059669;
 				}
 			}
 
 			span {
-				font-size: 0.875rem;
-				color: var(--color-text-base);
+				font-size: 0.9375rem;
+				color: #475569;
+				line-height: 1.6;
 
 				.popular & {
-					color: var(--color-text-dark);
+					color: #334155;
+					font-weight: 500;
 				}
 			}
 		}
@@ -712,29 +814,40 @@ const formatNumber = (num: number) => {
 
 	.plan-action {
 		text-align: center;
-		margin-bottom: 1rem;
+		margin-bottom: 1.5rem;
+		margin-top: auto;
 
 		.action-button {
 			width: 100%;
-			font-weight: 600;
-			padding: 0.875rem 1.5rem;
-			border-radius: 0.5rem;
-			transition: all 0.3s ease;
+			font-weight: 700;
+			padding: 1rem 1.5rem;
+			border-radius: 0.75rem;
+			transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+			font-size: 1rem;
+			text-transform: uppercase;
+			letter-spacing: 0.025em;
 
 			&.current-plan {
-				background: var(--color-success);
-				border-color: var(--color-success);
+				background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+				border-color: #10b981;
+				box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
+			}
+
+			&.coming-soon-button {
+				background: #e2e8f0;
+				border-color: #cbd5e1;
+				color: #64748b;
 			}
 
 			&.popular-button {
-				background: white;
-				color: var(--color-primary);
-				border-color: white;
-				box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+				background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+				color: white;
+				border: none;
+				box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
 
 				&:hover {
-					background: var(--color-primary-tint-1);
-					color: white;
+					box-shadow: 0 12px 32px rgba(102, 126, 234, 0.5);
+					transform: translateY(-2px);
 				}
 			}
 		}
@@ -742,37 +855,52 @@ const formatNumber = (num: number) => {
 
 	.trial-info {
 		text-align: center;
-		color: var(--color-text-light);
+		color: #64748b;
 		font-size: 0.875rem;
+		font-weight: 600;
+		padding: 0.75rem;
+		background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+		border-radius: 0.5rem;
 	}
 
 	.faq-section {
 		text-align: center;
-		margin-top: 5rem;
+		margin-top: 6rem;
+		padding: 4rem 2rem;
+		background: white;
+		border-radius: 2rem;
+		box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
 
 		h2 {
-			font-size: 1.875rem;
-			font-weight: 700;
+			font-size: 2.25rem;
+			font-weight: 800;
 			margin-bottom: 1rem;
-			color: var(--color-text-dark);
+			background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+			-webkit-background-clip: text;
+			-webkit-text-fill-color: transparent;
+			background-clip: text;
+			letter-spacing: -0.02em;
 		}
 
 		p {
-			font-size: 1rem;
-			color: var(--color-text-light);
-			margin-bottom: 2rem;
+			font-size: 1.125rem;
+			color: #64748b;
+			margin-bottom: 2.5rem;
+			font-weight: 400;
 		}
 
 		.faq-button {
-			background: var(--color-primary);
+			background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 			color: white;
-			padding: 0.75rem 2rem;
-			border-radius: 0.5rem;
-			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-			transition: all 0.3s ease;
+			padding: 1rem 2.5rem;
+			border-radius: 0.75rem;
+			box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
+			transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+			font-weight: 700;
+			border: none;
 
 			&:hover {
-				background: var(--color-primary-dark);
+				box-shadow: 0 12px 32px rgba(102, 126, 234, 0.4);
 				transform: translateY(-2px);
 			}
 		}
@@ -784,6 +912,12 @@ const formatNumber = (num: number) => {
 
 		.comparison-toggle {
 			margin-bottom: 2rem;
+			font-weight: 600;
+			color: #667eea;
+
+			&:hover {
+				color: #764ba2;
+			}
 		}
 
 		.comparison-table {
