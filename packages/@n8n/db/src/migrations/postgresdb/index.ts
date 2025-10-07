@@ -45,6 +45,7 @@ import { AddActivatedAtUserSetting1717498465931 } from './1717498465931-AddActiv
 import { FixExecutionMetadataSequence1721377157740 } from './1721377157740-FixExecutionMetadataSequence';
 import { MigrateTestDefinitionKeyToString1731582748663 } from './1731582748663-MigrateTestDefinitionKeyToString';
 import { UpdateParentFolderIdColumn1740445074052 } from './1740445074052-UpdateParentFolderIdColumn';
+import { AddProjectIdToVariableTable1758794506893 } from './1758794506893-AddProjectIdToVariableTable';
 import { CreateEmailVerificationTable1740445074053 } from './1740445074053-CreateEmailVerificationTable';
 import { CreateSubscriptionTables1740500000000 } from './1740500000000-CreateSubscriptionTables';
 import { SeedSubscriptionPlans1740500001000 } from './1740500001000-SeedSubscriptionPlans';
@@ -100,6 +101,8 @@ import { LinkRoleToUserTable1750252139168 } from '../common/1750252139168-LinkRo
 import { RemoveOldRoleColumn1750252139170 } from '../common/1750252139170-RemoveOldRoleColumn';
 import { CreateDataStoreTables1754475614601 } from '../common/1754475614601-CreateDataStoreTables';
 import { ReplaceDataStoreTablesWithDataTables1754475614602 } from '../common/1754475614602-ReplaceDataStoreTablesWithDataTables';
+import { AddTimestampsToRoleAndRoleIndexes1756906557570 } from '../common/1756906557570-AddTimestampsToRoleAndRoleIndexes';
+import { AddAudienceColumnToApiKeys1758731786132 } from '../common/1758731786132-AddAudienceColumnToApiKey';
 import type { Migration } from '../migration-types';
 import { AddStripePriceIds1740500003000 } from './1740500003000-AddStripePriceIds';
 
@@ -206,5 +209,8 @@ export const postgresMigrations: Migration[] = [
 	RemoveOldRoleColumn1750252139170,
 	ReplaceDataStoreTablesWithDataTables1754475614602,
 	LinkRoleToProjectRelationTable1753953244168,
+	AddTimestampsToRoleAndRoleIndexes1756906557570,
+	AddProjectIdToVariableTable1758794506893,
+	AddAudienceColumnToApiKeys1758731786132,
 	AddStripePriceIds1740500003000,
 ];

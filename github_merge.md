@@ -7,6 +7,20 @@ This document explains how to merge between branches for the [yucelz/anyflow](ht
 ## 🚀 Quick Commands (copy & paste)
 
 ```bash
+
+# 1. Make sure you're up to date
+git fetch origin
+
+# 2. Switch to the dev branch
+git checkout dev
+
+# 3. Make sure dev is current
+git pull origin dev
+
+# 4. Merge master into dev
+git merge origin/master
+
+
 # a) Merge master → dev
 git fetch --all --prune
 git checkout master && git pull origin master

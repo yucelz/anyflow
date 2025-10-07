@@ -15,7 +15,7 @@ import type {
 	CanvasConnectionPort,
 	CanvasNode,
 	CanvasNodeAddNodesRender,
-	CanvasNodeAIPromptRender,
+	CanvasNodeChoicePromptRender,
 	CanvasNodeData,
 	CanvasNodeDefaultRender,
 	CanvasNodeDefaultRenderLabelSize,
@@ -96,9 +96,10 @@ export function useCanvasMapping({
 			options: {},
 		};
 	}
-	function createAIPromptRenderType(): CanvasNodeAIPromptRender {
+
+	function createChoicePromptRenderType(): CanvasNodeChoicePromptRender {
 		return {
-			type: CanvasNodeRenderType.AIPrompt,
+			type: CanvasNodeRenderType.ChoicePrompt,
 			options: {},
 		};
 	}
@@ -140,8 +141,8 @@ export function useCanvasMapping({
 					case `${CanvasNodeRenderType.AddNodes}`:
 						acc[node.id] = createAddNodesRenderType();
 						break;
-					case `${CanvasNodeRenderType.AIPrompt}`:
-						acc[node.id] = createAIPromptRenderType();
+					case `${CanvasNodeRenderType.ChoicePrompt}`:
+						acc[node.id] = createChoicePromptRenderType();
 						break;
 					default:
 						acc[node.id] = createDefaultNodeRenderType(node);
@@ -299,12 +300,13 @@ export function useCanvasMapping({
 				if (
 					!!node.disabled ||
 					(triggerNodeName !== undefined && triggerNodeName !== node.name) ||
-					!['new', 'unknown', 'waiting'].includes(nodeExecutionStatusById.value[node.id])
+					!['new', 'unknown', 'waiting'].includes(nodeExecutionStatusById.value[node.id]) ||
+					nodePinnedDataById.value[node.id]
 				) {
 					return acc;
 				}
 
-				if ('eventTriggerDescription' in nodeTypeDescription) {
+				if (typeof nodeTypeDescription.eventTriggerDescription === 'string') {
 					const nodeName = i18n.shortNodeType(nodeTypeDescription.name);
 					const { eventTriggerDescription } = nodeTypeDescription;
 					acc[node.id] = i18n
@@ -499,6 +501,8 @@ export function useCanvasMapping({
 						acc[node.id] = i18n.baseText(
 							'node.theNodeIsWaitingIndefinitelyForAnIncomingWebhookCall',
 						);
+
+						return acc;
 					}
 
 					acc[node.id] = i18n.baseText('node.nodeIsWaitingTill', {
@@ -688,8 +692,8 @@ export function useCanvasMapping({
 
 	function getConnectionData(connection: CanvasConnection): CanvasConnectionData {
 		const { type, index } = parseCanvasConnectionHandleString(connection.sourceHandle);
-		const runDataTotal =
-			nodeExecutionRunDataOutputMapById.value[connection.source]?.[type]?.[index]?.total ?? 0;
+		const runData = nodeExecutionRunDataOutputMapById.value[connection.source]?.[type]?.[index];
+		const runDataTotal = runData?.total ?? 0;
 
 		const sourceTasks = nodeExecutionRunDataById.value[connection.source] ?? [];
 		let lastSourceTask: ITaskData | undefined = sourceTasks[sourceTasks.length - 1];
@@ -698,7 +702,7 @@ export function useCanvasMapping({
 		}
 
 		let status: CanvasConnectionData['status'];
-		if (nodeExecutionRunningById.value[connection.source]) {
+		if (nodeExecutionRunningById.value[connection.source] && runDataTotal === 0) {
 			status = 'running';
 		} else if (
 			nodePinnedDataById.value[connection.source] &&
@@ -753,12 +757,18 @@ export function useCanvasMapping({
 			const { type, index } = parseCanvasConnectionHandleString(connection.sourceHandle);
 			const runDataTotal =
 				nodeExecutionRunDataOutputMapById.value[fromNode.id]?.[type]?.[index]?.total ?? 0;
+			const hasMultipleRunDataIterations =
+				(nodeExecutionRunDataOutputMapById.value[fromNode.id]?.[type]?.[index]?.iterations ?? 1) >
+				1;
 
 			return runDataTotal > 0
-				? i18n.baseText('ndv.output.items', {
-						adjustToNumber: runDataTotal,
-						interpolate: { count: String(runDataTotal) },
-					})
+				? i18n.baseText(
+						hasMultipleRunDataIterations ? 'ndv.output.itemsTotal' : 'ndv.output.items',
+						{
+							adjustToNumber: runDataTotal,
+							interpolate: { count: String(runDataTotal) },
+						},
+					)
 				: '';
 		}
 

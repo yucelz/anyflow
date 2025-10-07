@@ -53,6 +53,8 @@ import {
 import { useViewportAutoAdjust } from './composables/useViewportAutoAdjust';
 import CanvasBackground from './elements/background/CanvasBackground.vue';
 import CanvasArrowHeadMarker from './elements/edges/CanvasArrowHeadMarker.vue';
+import CanvasConnectionLine from './elements/edges/CanvasConnectionLine.vue';
+import CanvasControlButtons from './elements/buttons/CanvasControlButtons.vue';
 import Edge from './elements/edges/CanvasEdge.vue';
 import Node from './elements/nodes/CanvasNode.vue';
 import { useExperimentalNdvStore } from './experimental/experimentalNdv.store';
@@ -123,6 +125,7 @@ const props = withDefaults(
 		executing?: boolean;
 		keyBindings?: boolean;
 		loading?: boolean;
+		suppressInteraction?: boolean;
 	}>(),
 	{
 		id: 'canvas',
@@ -134,6 +137,7 @@ const props = withDefaults(
 		executing: false,
 		keyBindings: true,
 		loading: false,
+		suppressInteraction: false,
 	},
 );
 
@@ -227,7 +231,7 @@ const renameKeyCode = ' ';
 useShortKeyPress(
 	renameKeyCode,
 	() => {
-		if (lastSelectedNode.value && lastSelectedNode.value.id !== CanvasNodeRenderType.AIPrompt) {
+		if (lastSelectedNode.value) {
 			emit('update:node:name', lastSelectedNode.value.id);
 		}
 	},
@@ -483,6 +487,7 @@ function onFocusNode(id: string) {
 	const node = vueFlow.nodeLookup.value.get(id);
 
 	if (node) {
+		addSelectedNodes([node]);
 		experimentalNdvStore.focusNode(node, {
 			canvasViewport: viewport.value,
 			canvasDimensions: dimensions.value,
@@ -658,11 +663,6 @@ async function onZoomOut() {
 
 async function onResetZoom() {
 	await onZoomTo(defaultZoom);
-}
-
-function setReadonly(value: boolean) {
-	setInteractive(!value);
-	elementsSelectable.value = true;
 }
 
 function onPaneMove({ event }: { event: unknown }) {
@@ -855,6 +855,7 @@ const initialized = ref(false);
 onMounted(() => {
 	props.eventBus.on('fitView', onFitView);
 	props.eventBus.on('nodes:select', onSelectNodes);
+	props.eventBus.on('nodes:selectAll', () => addSelectedNodes(graphNodes.value));
 	props.eventBus.on('tidyUp', onTidyUp);
 	window.addEventListener('blur', onWindowBlur);
 });
@@ -875,9 +876,16 @@ onNodesInitialized(() => {
 	initialized.value = true;
 });
 
-watch(() => props.readOnly, setReadonly, {
-	immediate: true,
-});
+watch(
+	[() => props.readOnly, () => props.suppressInteraction],
+	([readOnly, suppressInteraction]) => {
+		setInteractive(!readOnly && !suppressInteraction);
+		elementsSelectable.value = !suppressInteraction;
+	},
+	{
+		immediate: true,
+	},
+);
 
 watch([nodesSelectionActive, userSelectionRect], ([isActive, rect]) =>
 	emit('update:has-range-selection', isActive || (rect?.width ?? 0) > 0 || (rect?.height ?? 0) > 0),

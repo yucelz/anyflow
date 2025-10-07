@@ -9,12 +9,22 @@ import { useUIStore } from '@/stores/ui.store';
 import { useToast } from '@/composables/useToast';
 import { useDocumentTitle } from '@/composables/useDocumentTitle';
 import { hasPermission } from '@/utils/rbac/permissions';
-import N8nInfoTip from '@n8n/design-system/components/N8nInfoTip';
 import { COMMUNITY_PLUS_ENROLLMENT_MODAL } from '@/constants';
 import { useUsersStore } from '@/stores/users.store';
 import { getResourcePermissions } from '@n8n/permissions';
 import { I18nT } from 'vue-i18n';
 
+import { ElDialog } from 'element-plus';
+import {
+	N8nBadge,
+	N8nButton,
+	N8nHeading,
+	N8nInfoTip,
+	N8nInput,
+	N8nNotice,
+	N8nText,
+	N8nTooltip,
+} from '@n8n/design-system';
 const usageStore = useUsageStore();
 const route = useRoute();
 const router = useRouter();
@@ -69,11 +79,7 @@ const showActivationSuccess = () => {
 };
 
 const showActivationError = (error: Error) => {
-	toast.showError(
-		error,
-		locale.baseText('settings.usageAndPlan.license.activation.error.title'),
-		error.message,
-	);
+	toast.showError(error, locale.baseText('settings.usageAndPlan.license.activation.error.title'));
 };
 
 const onLicenseActivation = async () => {
@@ -155,11 +161,11 @@ const openCommunityRegisterModal = () => {
 
 <template>
 	<div class="settings-usage-and-plan">
-		<n8n-heading tag="h2" size="2xlarge">{{
+		<N8nHeading tag="h2" size="2xlarge">{{
 			locale.baseText('settings.usageAndPlan.title')
-		}}</n8n-heading>
+		}}</N8nHeading>
 		<div v-if="!usageStore.isLoading">
-			<n8n-heading tag="h3" :class="$style.title" size="large">
+			<N8nHeading tag="h3" :class="$style.title" size="large">
 				<I18nT keypath="settings.usageAndPlan.description" tag="span" scope="global">
 					<template #name>{{ badgedPlanName.name ?? usageStore.planName }}</template>
 					<template #type>
@@ -182,7 +188,7 @@ const openCommunityRegisterModal = () => {
 						<N8nBadge>{{ badgedPlanName.badge }}</N8nBadge>
 					</N8nTooltip>
 				</span>
-			</n8n-heading>
+			</N8nHeading>
 
 			<N8nNotice v-if="isCommunity && canUserRegisterCommunityPlus" class="mt-0" theme="warning">
 				<I18nT keypath="settings.usageAndPlan.callOut" scope="global">
@@ -198,9 +204,9 @@ const openCommunityRegisterModal = () => {
 			</N8nNotice>
 
 			<div :class="$style.quota">
-				<n8n-text size="medium" color="text-light">
+				<N8nText size="medium" color="text-light">
 					{{ locale.baseText('settings.usageAndPlan.activeWorkflows') }}
-				</n8n-text>
+				</N8nText>
 				<div :class="$style.chart">
 					<span v-if="usageStore.activeWorkflowTriggersLimit > 0" :class="$style.chartLine">
 						<span
@@ -228,7 +234,7 @@ const openCommunityRegisterModal = () => {
 			<N8nInfoTip>{{ locale.baseText('settings.usageAndPlan.activeWorkflows.hint') }}</N8nInfoTip>
 
 			<div :class="$style.buttons">
-				<n8n-button
+				<N8nButton
 					v-if="canUserActivateLicense"
 					:class="$style.buttonTertiary"
 					type="tertiary"
@@ -236,8 +242,8 @@ const openCommunityRegisterModal = () => {
 					@click="onAddActivationKey"
 				>
 					<span>{{ locale.baseText('settings.usageAndPlan.button.activation') }}</span>
-				</n8n-button>
-				<n8n-button v-if="usageStore.managementToken" size="large" @click="onManagePlan">
+				</N8nButton>
+				<N8nButton v-if="usageStore.managementToken" size="large" @click="onManagePlan">
 					<a :href="managePlanUrl" target="_blank">{{
 						locale.baseText('settings.usageAndPlan.button.manage')
 					}}</a>
@@ -247,7 +253,7 @@ const openCommunityRegisterModal = () => {
 				</n8n-button>
 			</div>
 
-			<el-dialog
+			<ElDialog
 				v-model="activationKeyModal"
 				width="480px"
 				top="0"
@@ -257,21 +263,21 @@ const openCommunityRegisterModal = () => {
 				@opened="onDialogOpened"
 			>
 				<template #default>
-					<n8n-input
+					<N8nInput
 						ref="activationKeyInput"
 						v-model="activationKey"
 						:placeholder="locale.baseText('settings.usageAndPlan.dialog.activation.label')"
 					/>
 				</template>
 				<template #footer>
-					<n8n-button type="secondary" @click="activationKeyModal = false">
+					<N8nButton type="secondary" @click="activationKeyModal = false">
 						{{ locale.baseText('settings.usageAndPlan.dialog.activation.cancel') }}
-					</n8n-button>
-					<n8n-button @click="onLicenseActivation">
+					</N8nButton>
+					<N8nButton @click="onLicenseActivation">
 						{{ locale.baseText('settings.usageAndPlan.dialog.activation.activate') }}
-					</n8n-button>
+					</N8nButton>
 				</template>
-			</el-dialog>
+			</ElDialog>
 		</div>
 	</div>
 </template>

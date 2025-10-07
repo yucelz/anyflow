@@ -103,7 +103,7 @@ export class UserManagementMailer {
 				return await this.mailer!.sendMail({
 					emailRecipients: recipient.email,
 					subject: subjectBuilder(),
-					body: populateTemplate(templateData),
+					body: populateTemplate({ ...this.basePayload, ...templateData }),
 				});
 			});
 
@@ -246,6 +246,8 @@ export class UserManagementMailer {
 	private get basePayload() {
 		const baseUrl = this.urlService.getInstanceBaseUrl();
 		const domain = new URL(baseUrl).hostname;
-		return { baseUrl, domain };
+		const currentYear = new Date().getFullYear();
+
+		return { baseUrl, domain, currentYear };
 	}
 }
